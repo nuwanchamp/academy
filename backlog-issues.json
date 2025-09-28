@@ -1,0 +1,39 @@
+[
+    {
+        "issue": "Single Action Controller Violation",
+        "description": "The `test` method in `RegistrationController` is an empty method that serves no purpose. It adds clutter to the controller and violates the single responsibility principle.",
+        "guide": "Remove the `test` method from the `RegistrationController`.",
+        "status": "pending"
+    },
+    {
+        "issue": "Hardcoded Redirect",
+        "description": "The `store` method in `RegistrationController` has a hardcoded redirect to `/home`. This makes the application less flexible and harder to maintain.",
+        "guide": "Use a named route for the redirect. For example, `return redirect()->route('home');`. This will make the application more flexible and easier to maintain.",
+        "status": "pending"
+    },
+    {
+        "issue": "Lack of a Service Layer",
+        "description": "The `RegistrationController` is responsible for validation, creating the user, and logging the user in. This violates the single responsibility principle and makes the controller harder to test.",
+        "guide": "Create a `RegistrationService` that is responsible for creating the user and logging them in. The controller should then call the service. This will make the controller thinner and easier to test.",
+        "status": "pending"
+    },
+    {
+        "issue": "No explicit API resource is used",
+        "description": "The `RegistrationController` is returning a redirect. This is not ideal for API routes. It's better to return a JSON response with the user data.",
+        "guide": "Use an API resource to return the user data. This will make the API more consistent and easier to consume.",
+        "status": "pending"
+    },
+
+    {
+        "issue": "Catch-all Route",
+        "description": "The catch-all route `Route::get('/{any}', ...)` will catch any GET request that doesn't match a previous route. This can make it difficult to debug 404 errors and can also have performance implications.",
+        "guide": "Be more specific with routes. If this is for an SPA, consider prefixing the API routes with `/api` and the web routes with something else. This will make the application more maintainable.",
+        "status": "pending"
+    },
+    {
+        "issue": "Route Definition",
+        "description": "The route `Route::post('/dashboard', [RegistrationController::class, 'dashboard'])->name('home');` is pointing to a non-existent method and has an inconsistent name.",
+        "guide": "Create a `DashboardController` with an `index` method. The route should then be `Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');`. The `home` name is already used for the redirect in the `RegistrationController`, so it should be changed to `dashboard`.",
+        "status": "pending"
+    }
+]

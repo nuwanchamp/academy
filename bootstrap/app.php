@@ -11,9 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        if (app()->environment('testing')) {
-            $middleware->remove(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
-        }
+//        if (config('app.env') === 'testing') {
+//            $middleware->remove(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
+//        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

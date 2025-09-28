@@ -3,16 +3,11 @@
 namespace App\Contexts\UserManagement\Http\Controllers;
 
 use App\Contexts\UserManagement\Models\User;
-use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
-class RegistrationController extends Controller
+class RegistrationController
 {
-    public function create()
-    {
-        return view('welcome');
-    }
 
     public function store(Request $request)
     {
@@ -30,6 +25,9 @@ class RegistrationController extends Controller
 
         auth()->login($user);
 
+        return redirect('/home');
+    }
+    public function dashboard(Request $request){
         return redirect('/home');
     }
 }
