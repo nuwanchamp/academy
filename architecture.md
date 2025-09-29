@@ -36,17 +36,25 @@ The application will be organized by **Domain Contexts** rather than by technica
 -   **State Management**: **Redux Toolkit**. A predictable and powerful way to manage the application's state, especially in a system with different user roles and complex data flows.
 -   **Data Fetching**: **TanStack Query (React Query)**. For declaratively fetching, caching, and updating data from the API, which simplifies data synchronization and improves perceived performance.
 
-## 4. DevOps and Infrastructure
+## 4. Frontend Architecture
 
--   **Containerization**: **Docker** (with Docker Compose for local development). This ensures a consistent and reproducible environment for development, testing, and production.
--   **CI/CD**: **GitHub Actions**. To automate the entire pipeline:
-    1.  **On Pull Request**: Run static analysis (Larastan), code style checks (Pint), and automated tests (Pest).
-    2.  **On Merge to `main`**: Deploy automatically to a staging environment.
-    3.  **On Tag/Release**: Deploy to the production environment.
--   **Hosting**:
-    -   **Recommended**: **Laravel Forge** or **Vapor** for seamless management and deployment of the Laravel backend on servers from DigitalOcean, AWS, etc.
-    -   **Alternative**: A fully containerized deployment on **AWS (ECS/Fargate)** or **DigitalOcean (App Platform)**.
--   **File Storage**: **Amazon S3** (or a compatible service like DigitalOcean Spaces). For securely storing uploaded documents, images, and learning materials.
+The frontend is built with React and TypeScript, utilizing Vite for a fast development experience. It follows a component-based architecture, with a clear separation of concerns.
+
+### 4.1 Design System
+
+The project utilizes **shadcn/ui** components, styled with **Tailwind CSS**, to provide a consistent and intelligent theme. This approach allows for highly customizable and accessible UI components. The theming supports light, dark, and system modes, managed by a custom `ThemeProvider`.
+
+-   **Components**: Reusable UI components are located in `resources/js/components/ui/`.
+-   **Styling**: Tailwind CSS is used for all styling, with custom CSS variables defined in `resources/css/app.css` to manage the color palette and other design tokens.
+-   **Theming**: The `ThemeProvider` (located in `resources/js/components/theme-provider.tsx`) handles theme switching (light, dark, system) and persists the user's preference.
+-   **Utilities**: Common utility functions, such as `cn` for merging Tailwind classes, are found in `resources/js/lib/utils.ts`.
+
+### 4.2 Project Structure
+
+-   `resources/js/app.ts`: Main entry point for the React application.
+-   `resources/js/Index.tsx`: Root React component, responsible for routing and theme provisioning.
+-   `resources/js/pages/`: Contains page-level components (e.g., `Home.tsx`, `Register.tsx`).
+-   `resources/js/components/`: Contains reusable components, including the `ui` library components.
 
 ## 5. Testing Strategy
 
