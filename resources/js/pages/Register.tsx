@@ -2,6 +2,10 @@ import React, { useState, FormEvent, ChangeEvent } from 'react';
 import axios, { AxiosError } from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+import {ModeToggle} from "@/components/mode-toggle.tsx";
+import {H1} from "@/components/ui/typography/h1.tsx";
+import {Button} from "@/components/ui/button.tsx";
+
 interface ValidationErrors {
     name?: string[];
     email?: string[];
@@ -59,7 +63,8 @@ const Register: React.FC = () => {
 
     return (
         <div className={"container p-4"}>
-            <h1 className={"text-2xl"}>Register</h1>
+            <ModeToggle/>
+            <H1>Register</H1>
             <form onSubmit={handleSubmit} className={"container"}>
                 {generalError && <p style={{ color: 'red' }}>{generalError}</p>}
                 <div>
@@ -81,9 +86,9 @@ const Register: React.FC = () => {
                     <label htmlFor="password_confirmation">Confirm Password</label>
                     <input type="password" id="password_confirmation" value={passwordConfirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setPasswordConfirmation(e.target.value)} disabled={loading} />
                 </div>
-                <button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading}>
                     {loading ? 'Registering...' : 'Register'}
-                </button>
+                </Button>
             </form>
         </div>
     );

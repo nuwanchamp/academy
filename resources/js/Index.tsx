@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
+import React, {useEffect} from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import {BrowserRouter, Routes, Route} from 'react-router-dom';
 import Home from './pages/Home';
 import Register from './pages/Register';
 import axios from 'axios';
+import {ThemeProvider} from "@/components/theme-provider.tsx";
 
 const Index: React.FC = () => {
     useEffect(() => {
@@ -13,9 +14,9 @@ const Index: React.FC = () => {
     return (
         <BrowserRouter>
             <Routes>
-                <Route path="/" element={<Home />} />
-                <Route path="/register" element={<Register />} />
-                <Route path="/home" element={<Home />} />
+                <Route path="/" element={<Home/>}/>
+                <Route path="/register" element={<Register/>}/>
+                <Route path="/home" element={<Home/>}/>
             </Routes>
         </BrowserRouter>
     );
@@ -28,7 +29,9 @@ if (container) {
 
     root.render(
         <React.StrictMode>
-            <Index />
+            <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+                <Index/>
+            </ThemeProvider>
         </React.StrictMode>
     );
 }

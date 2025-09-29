@@ -59,3 +59,107 @@ A multi-layered testing approach is critical for ensuring the system is reliable
 -   **Frontend (Jest & React Testing Library)**:
     -   **Unit Tests**: For individual React components and utility functions.
     -   **Integration Tests**: For testing user flows within the frontend application.
+
+## 6. API Schema (v1)
+
+The API will be versioned under the `/api/v1` prefix. All responses will be in JSON format.
+
+### 6.1 User Management
+
+#### 6.1.1 `POST /api/v1/register`
+
+Registers a new user.
+
+-   **Request Body**:
+    ```json
+    {
+      "name": "string",
+      "email": "string (email)",
+      "password": "string (min: 8, confirmed)",
+      "password_confirmation": "string"
+    }
+    ```
+-   **Response (201 Created)**:
+    ```json
+    {
+      "user": {
+        "id": "integer",
+        "name": "string",
+        "email": "string",
+        "created_at": "datetime",
+        "updated_at": "datetime"
+      },
+      "token": "string (Sanctum API token)"
+    }
+    ```
+
+#### 6.1.2 `POST /api/v1/login`
+
+Logs in a user.
+
+-   **Request Body**:
+    ```json
+    {
+      "email": "string (email)",
+      "password": "string"
+    }
+    ```
+-   **Response (200 OK)**:
+    ```json
+    {
+      "user": {
+        "id": "integer",
+        "name": "string",
+        "email": "string"
+      },
+      "token": "string (Sanctum API token)"
+    }
+    ```
+
+#### 6.1.3 `POST /api/v1/logout`
+
+Logs out the authenticated user.
+
+-   **Authentication**: Bearer Token required.
+-   **Response (204 No Content)**
+
+### 6.2 Student Profiles
+
+#### 6.2.1 `GET /api/v1/students`
+
+Retrieves a list of students for the authenticated teacher.
+
+-   **Authentication**: Bearer Token required.
+-   **Response (200 OK)**:
+    ```json
+    {
+      "data": [
+        {
+          "id": "integer",
+          "name": "string",
+          "date_of_birth": "date"
+        }
+      ]
+    }
+    ```
+
+#### 6.2.2 `POST /api/v1/students`
+
+Creates a new student profile.
+
+-   **Authentication**: Bearer Token required.
+-   **Request Body**:
+    ```json
+    {
+      "name": "string",
+      "date_of_birth": "date"
+    }
+    ```
+-   **Response (201 Created)**:
+    ```json
+    {
+      "id": "integer",
+      "name": "string",
+      "date_of_birth": "date"
+    }
+    ```
