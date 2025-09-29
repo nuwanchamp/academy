@@ -5,8 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import {ModeToggle} from "@/components/mode-toggle.tsx";
 import {H1} from "@/components/ui/typography/h1.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {Input} from "@/components/ui/input.tsx";
-import {Label} from "@/components/ui/label.tsx";
 
 interface ValidationErrors {
     name?: string[];
@@ -69,24 +67,24 @@ const Register: React.FC = () => {
             <H1>Register</H1>
             <form onSubmit={handleSubmit} className={"container"}>
                 {generalError && <p style={{ color: 'red' }}>{generalError}</p>}
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="name">Name</Label>
-                    <Input type="text" id="name" value={name} onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)} disabled={loading} />
-                    {errors.name && <p className="text-destructive text-sm">{errors.name[0]}</p>}
+                <div>
+                    <label htmlFor="name">Name</label>
+                    <input type="text" id="name" value={name} onChange={(e: ChangeEvent<HTMLInputElement>) => setName(e.target.value)} disabled={loading} />
+                    {errors.name && <span style={{ color: 'red' }}>{errors.name[0]}</span>}
                 </div>
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="email">Email</Label>
-                    <Input type="email" id="email" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} disabled={loading} />
-                    {errors.email && <p className="text-destructive text-sm">{errors.email[0]}</p>}
+                <div>
+                    <label htmlFor="email">Email</label>
+                    <input type="email" id="email" value={email} onChange={(e: ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)} disabled={loading} />
+                    {errors.email && <span style={{ color: 'red' }}>{errors.email[0]}</span>}
                 </div>
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="password">Password</Label>
-                    <Input type="password" id="password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} disabled={loading} />
-                    {errors.password && <p className="text-destructive text-sm">{errors.password[0]}</p>}
+                <div>
+                    <label htmlFor="password">Password</label>
+                    <input type="password" id="password" value={password} onChange={(e: ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} disabled={loading} />
+                    {errors.password && <span style={{ color: 'red' }}>{errors.password[0]}</span>}
                 </div>
-                <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="password_confirmation">Confirm Password</Label>
-                    <Input type="password" id="password_confirmation" value={passwordConfirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setPasswordConfirmation(e.target.value)} disabled={loading} />
+                <div>
+                    <label htmlFor="password_confirmation">Confirm Password</label>
+                    <input type="password" id="password_confirmation" value={passwordConfirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setPasswordConfirmation(e.target.value)} disabled={loading} />
                 </div>
                 <Button type="submit" disabled={loading}>
                     {loading ? 'Registering...' : 'Register'}
