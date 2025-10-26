@@ -86,7 +86,7 @@ const Register: React.FC = () => {
                     <label htmlFor="password_confirmation">Confirm Password</label>
                     <input type="password" id="password_confirmation" value={passwordConfirmation} onChange={(e: ChangeEvent<HTMLInputElement>) => setPasswordConfirmation(e.target.value)} disabled={loading} />
                 </div>
-                <Button type="submit" disabled={loading}>
+                <Button      type="submit" disabled={loading}>
                     {loading ? 'Registering...' : 'Register'}
                 </Button>
             </form>
