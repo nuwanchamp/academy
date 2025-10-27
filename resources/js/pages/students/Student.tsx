@@ -41,7 +41,7 @@ export default function Student() {
         <div className={"flex flex-row gap-4"}>
             <div className={"w-2/3 "}>
                 <div className={"flex  flex-col gap-4"}>
-                    <Card>
+                    <Card className={"bg-gradient-to-r from-primary/10 to-primary/20"}>
                         <CardContent className={"flex flex-row gap-4 items-start justify-between"}>
                             <div>
                                 <PageHeading lead={"Student"} title={"John Doe"}/>

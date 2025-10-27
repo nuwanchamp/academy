@@ -13,21 +13,21 @@ export const Sidebar = () => {
         <aside
             className="w-1/3 max-w-64 rounded-xl py-8 px-5 bg-primary top-2 bottom-2 fixed left-2 flex justify-between flex-col">
             <div className={"flex flex-row gap-2 items-center justify-start"}>
-                <Logo className={"w-10 brightness-[600] opacity-50"}/>
+                <Logo className={"w-15"}/>
                 <H1 className={"text-center text-white text-md tracking-wider uppercase"}>Rainbow Roots</H1>
             </div>
             <div>
                 <nav className={"flex flex-col gap-6 items-start"}>
                     <NavLink icon={<LucideLayoutDashboard/>} name={"Dashboard"} route={"/dashboard"}/>
                     <NavLink icon={<LucideBookOpen/>} name={"Modules"} route={"/modules"}/>
-                    <NavLink icon={<LucideBadge/>} name={"Learning Paths"} route={"/dashboard/paths"}/>
+                    <NavLink icon={<LucideBadge/>} name={"Learning Paths"} route={"/paths"}/>
                     <NavLink icon={<LucideUsers/>} name={"My Students"} route={"/students"}/>
-                    <NavLink icon={<LucideChartArea/>} name={"Reports"} route={"/dashboard/reports"}/>
+                    <NavLink icon={<LucideChartArea/>} name={"Reports"} route={"/reports"}/>
                 </nav>
             </div>
             <div>
                 <nav>
-                    <NavLink icon={<LucideSettings/>} name={"Settings"} route={"/dashboard/settings"}/>
+                    <NavLink icon={<LucideSettings/>} name={"Settings"} route={"/settings"}/>
                 </nav>
             </div>
 
