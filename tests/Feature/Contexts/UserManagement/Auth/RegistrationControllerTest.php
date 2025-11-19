@@ -9,7 +9,7 @@ test('the registration page can be rendered', function () {
     $response = $this->get('/register');
 
     $response->assertStatus(200);
-    $response->assertViewIs('welcome');
+    $response->assertViewIs('landing');
 });
 
 test('a user can register for an account', function () {

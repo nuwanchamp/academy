@@ -19,6 +19,7 @@ import {Button} from "@/components/ui/button.tsx";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx";
 import {FileText, UploadCloud, X} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
+import RichTextEditor from "@/components/RichTextEditor.tsx";
 
 interface LessonMediaAsset {
     id: string;
@@ -35,6 +36,7 @@ interface LessonFormData {
     summary: string;
     objectives: string;
     body: string;
+    instructions: string;
     media: LessonMediaAsset[];
 }
 
@@ -48,6 +50,7 @@ export default function ModuleCreate() {
             summary: "",
             objectives: "",
             body: "",
+            instructions: "",
             media: [],
         },
     ]);
@@ -182,6 +185,7 @@ export default function ModuleCreate() {
                 summary: "",
                 objectives: "",
                 body: "",
+                instructions: "",
                 media: [],
             },
         ]));
@@ -343,14 +347,22 @@ export default function ModuleCreate() {
                                                             <FieldGroup>
                                                                 <Field>
                                                                     <FieldLabel htmlFor={`lesson-${index}-body`}>Body / content blocks</FieldLabel>
-                                                                    <Textarea
+                                                                    <RichTextEditor
                                                                         id={`lesson-${index}-body`}
-                                                                        placeholder="Add the core delivery content, including text, slide notes, scripts, or embed instructions."
-                                                                        rows={6}
                                                                         value={lesson.body}
-                                                                        onChange={(event) =>
-                                                                            handleLessonFieldChange(lesson.id, "body", event.target.value)
-                                                                        }
+                                                                        onChange={(value) => handleLessonFieldChange(lesson.id, "body", value)}
+                                                                        placeholder="Add the core delivery content, including text, slide notes, scripts, or embed instructions."
+                                                                        minHeight={280}
+                                                                    />
+                                                                </Field>
+                                                                <Field>
+                                                                    <FieldLabel htmlFor={`lesson-${index}-instructions`}>Facilitation instructions</FieldLabel>
+                                                                    <RichTextEditor
+                                                                        id={`lesson-${index}-instructions`}
+                                                                        value={lesson.instructions}
+                                                                        onChange={(value) => handleLessonFieldChange(lesson.id, "instructions", value)}
+                                                                        placeholder="Capture reminders for facilitators: tone-setting, materials prep, or cross-lesson scaffolds."
+                                                                        minHeight={220}
                                                                     />
                                                                 </Field>
                                                                 <Field>

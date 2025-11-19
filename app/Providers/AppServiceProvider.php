@@ -19,8 +19,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $migrationPaths = glob(app_path('Contexts/*/Database/Migrations'));
-
-        $this->loadMigrationsFrom($migrationPaths);
+        // Context-specific providers register their own migrations/routes.
     }
 }

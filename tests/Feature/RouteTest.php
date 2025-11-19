@@ -1,5 +1,7 @@
 <?php
 
-test('dump register route', function () {
-    dd(route('register'));
+test('register route is accessible', function () {
+    $this->get('/register')->assertOk();
+
+    expect(route('register'))->toEqual(url('/register'));
 });

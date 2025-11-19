@@ -3,9 +3,10 @@ module.exports = {
     setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/resources/js/$1',
+        '\\.(svg|png|jpg|jpeg|gif)$': '<rootDir>/tests/__mocks__/fileMock.js',
     },
     transform: {
-        '^.+\.(js|jsx)$': 'babel-jest',
+        '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
     },
-    moduleFileExtensions: ['js', 'jsx', 'json', 'node'],
+    moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
 };

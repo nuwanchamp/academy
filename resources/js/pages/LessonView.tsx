@@ -69,6 +69,37 @@ const lessonDetails = {
     updatedAt: "April 8, 2025",
     summary:
         "Set expectations, co-create norms, and capture a baseline snapshot of how learners notice and name sensory input before diving into the full pathway.",
+    body: `
+        <p>Start with a sensory warm welcome that gives each learner a predictable routine, then cycle through short bursts of modeling, exploration, and reflection.</p>
+        <figure>
+            <img
+                src="https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80"
+                alt="Sensory exploration table"
+                class="w-full rounded-xl border border-dashed border-border object-cover"
+            />
+            <figcaption class="mt-2 text-xs text-muted-foreground">Model station layout so every teacher can recreate it with confidence.</figcaption>
+        </figure>
+        <ol>
+            <li><strong>Warm-up (5 min):</strong> Use the co-created greeting routine and capture any notable regulation signals.</li>
+            <li><strong>Mini-lesson (10 min):</strong> Introduce the essential question and anchor visuals that illustrate each sense.</li>
+            <li><strong>Stations (20 min):</strong> Rotate through tactile, auditory, and visual provocations, logging baseline notes for each learner.</li>
+            <li><strong>Reflection (10 min):</strong> Guide a circle share-out followed by independent journaling.</li>
+        </ol>
+        <div class="rounded-2xl overflow-hidden border border-border my-6">
+            <iframe
+                class="aspect-video w-full"
+                src="https://www.youtube-nocookie.com/embed/aqz-KE-bpKQ"
+                title="Calming toolkit walkthrough"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+            ></iframe>
+        </div>
+    `,
+    instructions: `
+        <p>Before students arrive, prep the sensory stations with labeled cards and preview calming tools so the routine feels predictable. Post the essential question and norms anchor chart where all learners can see it immediately.</p>
+        <p>During the lesson, narrate your own sensory check-ins and pause between segments to log observations. Capture what you plan to share with caregivers so everyone reinforces the same calming strategies at home.</p>
+        <p><em>Tip:</em> Record a quick facilitation clip (like the one above) so substitutes and co-teachers have instant modeling.</p>
+    `,
     essentialQuestion: "How does our environment influence what we notice, feel, and do?",
     objectives: [
         "Build shared language around the five core senses.",
@@ -186,7 +217,11 @@ const lessonDetails = {
         title: "Calming Toolkit Lab",
         focus: "Learners experiment with tactile, auditory, and visual stations to practise calming techniques and identify personal favourites.",
     },
-    previousLesson: undefined,
+    previousLesson: {
+        id: "stations-explore",
+        title: "Sensory station exploration",
+        focus: "Learners experiment with tactile, auditory, and visual stations to practise calming techniques and identify personal favourites.",
+    },
 };
 
 export default function LessonView() {
@@ -296,6 +331,37 @@ export default function LessonView() {
                     </CardContent>
                 </Card>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Lesson content blueprint</CardTitle>
+                    <CardDescription>High-level flow before diving into each segment.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div
+                        className="space-y-3 text-sm leading-relaxed text-muted-foreground [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:my-1 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs"
+                        dangerouslySetInnerHTML={{__html: lessonDetails.body}}
+                    />
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Facilitation instructions</CardTitle>
+                    <CardDescription>Guidance that keeps delivery consistent across facilitators.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex gap-4">
+                        <div className="rounded-full bg-primary/10 p-3 text-primary">
+                            <FileText className="size-5" />
+                        </div>
+                        <div
+                            className="space-y-4 text-sm leading-relaxed text-muted-foreground [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:list-decimal [&_ol]:pl-6 [&_blockquote]:border-l-4 [&_blockquote]:border-primary [&_blockquote]:pl-4 [&_blockquote]:italic [&_code]:rounded [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-xs"
+                            dangerouslySetInnerHTML={{__html: lessonDetails.instructions}}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
             <Card>
                 <CardHeader>

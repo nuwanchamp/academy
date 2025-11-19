@@ -1,4 +1,5 @@
-import {useEffect, useMemo, useState} from "react";
+import {useEffect, useState} from "react";
+import axios from "axios";
 import {Link} from "react-router-dom";
 import {Filter, Search} from "lucide-react";
 import PageHeading from "@/components/ui/PageHeading.tsx";
@@ -28,65 +29,38 @@ import {
 } from "@/components/ui/pagination.tsx";
 import {cn} from "@/lib/utils.ts";
 
-const students = [
-    {
-        id: 1,
-        name: "Avery Chen",
-        grade: "Grade 4",
-        dateOfBirth: "Jan 12, 2016",
-        status: "Active",
-        diagnoses: ["Autism Spectrum", "Sensory processing"],
-        primaryGuardian: {
-            name: "Morgan Chen",
-            email: "morgan.chen@example.com",
-            phone: "(555) 213-9110",
-        },
-        assignedTeacher: "Jo Walsh",
-        lastUpdated: "Apr 2, 2025",
-        notes: "Responds well to visual schedules and weekly communication logs.",
-    },
-    {
-        id: 2,
-        name: "Noah Alvarez",
-        grade: "Grade 3",
-        dateOfBirth: "May 8, 2017",
-        status: "Onboarding",
-        diagnoses: ["ADHD"],
-        primaryGuardian: {
-            name: "Samara Alvarez",
-            email: "samara.alvarez@example.com",
-            phone: "(555) 402-1188",
-        },
-        assignedTeacher: "Ellie Summers",
-        lastUpdated: "Mar 28, 2025",
-        notes: "Scheduled for first evaluation on Apr 9. Guardian requested weekly progress check-ins.",
-    },
-    {
-        id: 3,
-        name: "Lina Patel",
-        grade: "Grade 5",
-        dateOfBirth: "Sep 30, 2015",
-        status: "Active",
-        diagnoses: ["Dyslexia"],
-        primaryGuardian: {
-            name: "Ravi Patel",
-            email: "ravi.patel@example.com",
-            phone: "(555) 899-2441",
-        },
-        assignedTeacher: "Jordan Rivers",
-        lastUpdated: "Mar 22, 2025",
-        notes: "Currently working through literacy intervention track with weekly parent summaries.",
-    },
-];
+type StudentListItem = {
+    id: number;
+    first_name: string;
+    last_name: string;
+    preferred_name?: string | null;
+    grade?: string | null;
+    status?: string | null;
+    date_of_birth?: string | null;
+};
 
-const gradeOptions = ["All grades", "Grade 3", "Grade 4", "Grade 5"];
-const statusOptions: Array<"All statuses" | "Active" | "Onboarding" | "Archived"> = [
-    "All statuses",
-    "Active",
-    "Onboarding",
-    "Archived",
+type PaginatedResponse = {
+    data: StudentListItem[];
+    meta?: {
+        current_page?: number;
+        last_page?: number;
+        total?: number;
+    };
+    filters?: {
+        grades?: string[];
+    };
+};
+
+const DEFAULT_GRADE_FILTER = "All grades";
+const DEFAULT_STATUS_FILTER = "ALL";
+const pageSize = 3;
+
+const statusOptions: Array<{value: string; label: string}> = [
+    {value: DEFAULT_STATUS_FILTER, label: "All statuses"},
+    {value: "active", label: "Active"},
+    {value: "onboarding", label: "Onboarding"},
+    {value: "archived", label: "Archived"},
 ];
-const teacherOptions = ["All teachers", "Jo Walsh", "Ellie Summers", "Jordan Rivers"];
 
 const statusTone: Record<string, "default" | "secondary" | "outline"> = {
     active: "default",
@@ -94,59 +68,251 @@ const statusTone: Record<string, "default" | "secondary" | "outline"> = {
     archived: "outline",
 };
 
-export default function Students() {
+const formatDate = (value?: string | null): string => {
+    if (!value) {
+        return "—";
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+    }).format(parsed);
+};
+
+const Students = () => {
+    const [students, setStudents] = useState<StudentListItem[]>([]);
+    const [gradeOptions, setGradeOptions] = useState<string[]>([DEFAULT_GRADE_FILTER]);
     const [search, setSearch] = useState("");
-    const [grade, setGrade] = useState(gradeOptions[0]);
-    const [status, setStatus] = useState<typeof statusOptions[number]>("All statuses");
-    const [teacher, setTeacher] = useState(teacherOptions[0]);
-    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [grade, setGrade] = useState(DEFAULT_GRADE_FILTER);
+    const [status, setStatus] = useState(DEFAULT_STATUS_FILTER);
     const [page, setPage] = useState(1);
-    const pageSize = 3;
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [meta, setMeta] = useState({
+        current_page: 1,
+        last_page: 1,
+        total: 0,
+    });
 
-    const filteredStudents = useMemo(() => {
-        return students.filter((student) => {
-            const matchesSearch =
-                search.trim().length === 0 ||
-                [
-                    student.name,
-                    student.primaryGuardian.name,
-                    student.primaryGuardian.email,
-                    student.assignedTeacher,
-                    ...student.diagnoses,
-                ].some((value) => value.toLowerCase().includes(search.toLowerCase()));
+    const fetchStudents = async (overridePage?: number) => {
+        const currentPage = overridePage ?? page;
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams();
+            params.set("page", String(currentPage));
+            params.set("per_page", String(pageSize));
+            const trimmedSearch = search.trim();
+            if (trimmedSearch) {
+                params.set("search", trimmedSearch);
+            }
+            if (grade !== DEFAULT_GRADE_FILTER) {
+                params.set("grade", grade);
+            }
+            if (status !== DEFAULT_STATUS_FILTER) {
+                params.set("status", status);
+            }
 
-            const matchesGrade = grade === gradeOptions[0] || student.grade === grade;
-            const matchesStatus = status === "All statuses" || student.status.toLowerCase() === status.toLowerCase();
-            const matchesTeacher = teacher === teacherOptions[0] || student.assignedTeacher === teacher;
-
-            return matchesSearch && matchesGrade && matchesStatus && matchesTeacher;
-        });
-    }, [grade, status, teacher, search]);
+            const url = `/api/v1/students?${params.toString()}`;
+            const {data}: {data: PaginatedResponse} = await axios.get(url);
+            setStudents(data.data ?? []);
+            setMeta({
+                current_page: data.meta?.current_page ?? currentPage,
+                last_page: data.meta?.last_page ?? 1,
+                total: data.meta?.total ?? data.data?.length ?? 0,
+            });
+            const grades = data.filters?.grades ?? [];
+            setGradeOptions([DEFAULT_GRADE_FILTER, ...grades.filter(Boolean)]);
+            setError(null);
+        } catch (err) {
+            setError(axios.isAxiosError(err) ? err.response?.data?.message ?? err.message : "Unable to load students.");
+            setStudents([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
         setPage(1);
-    }, [search, grade, status, teacher]);
+    }, [search, grade, status]);
 
-    const totalPages = Math.max(1, Math.ceil(filteredStudents.length / pageSize));
-    const currentPage = Math.min(page, totalPages);
-
-    const paginatedStudents = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return filteredStudents.slice(start, start + pageSize);
-    }, [filteredStudents, currentPage]);
+    useEffect(() => {
+        fetchStudents();
+    }, [page]);
 
     const handleChangePage = (nextPage: number) => {
-        if (nextPage < 1 || nextPage > totalPages) {
+        if (nextPage < 1 || nextPage > meta.last_page) {
             return;
         }
         setPage(nextPage);
+        fetchStudents(nextPage);
+    };
+
+    const resetFilters = () => {
+        setSearch("");
+        setGrade(DEFAULT_GRADE_FILTER);
+        setStatus(DEFAULT_STATUS_FILTER);
+        setFiltersOpen(false);
+        setPage(1);
+        fetchStudents(1);
     };
 
     const activeFilters = [
-        grade !== gradeOptions[0] && {label: grade, onRemove: () => setGrade(gradeOptions[0])},
-        status !== "All statuses" && {label: status, onRemove: () => setStatus("All statuses")},
-        teacher !== teacherOptions[0] && {label: teacher, onRemove: () => setTeacher(teacherOptions[0])},
+        grade !== DEFAULT_GRADE_FILTER && {label: grade, onRemove: () => setGrade(DEFAULT_GRADE_FILTER)},
+        status !== DEFAULT_STATUS_FILTER && {
+            label: statusOptions.find((option) => option.value === status)?.label ?? "Status",
+            onRemove: () => setStatus(DEFAULT_STATUS_FILTER),
+        },
     ].filter(Boolean) as Array<{ label: string; onRemove: () => void }>;
+
+    const rosterContent = () => {
+        if (isLoading) {
+            return (
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center gap-2 py-12 text-center text-muted-foreground">
+                        <CardTitle className="text-lg text-foreground">Loading your caseload…</CardTitle>
+                        <p className="text-sm">Fetching students from the server.</p>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        if (error) {
+            return (
+                <Card className="border-destructive/30 bg-destructive/5">
+                    <CardContent role="alert" className="flex flex-col gap-3 py-8 text-center">
+                        <CardTitle className="text-destructive">Unable to load students</CardTitle>
+                        <p className="text-sm text-muted-foreground">{error}</p>
+                        <Button variant="outline" onClick={() => fetchStudents()}>
+                            Try again
+                        </Button>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        if (students.length === 0) {
+            return (
+                <Card className="border-dashed">
+                    <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
+                        <CardTitle className="text-lg text-foreground">No students match your filters yet</CardTitle>
+                        <p className="max-w-md text-sm leading-relaxed">
+                            Adjust your filters or register a new student to see them listed here.
+                        </p>
+                        <Button asChild>
+                            <Link to="/students/create">Register student</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            );
+        }
+
+        return (
+            <>
+                <div className="flex flex-col gap-4">
+                    {students.map((student) => (
+                        <div
+                            key={student.id}
+                            className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm"
+                        >
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div className="space-y-1">
+                                    <h3 className="text-xl font-semibold text-foreground">
+                                        {student.first_name} {student.last_name}
+                                        {student.preferred_name && (
+                                            <span className="text-muted-foreground"> ({student.preferred_name})</span>
+                                        )}
+                                    </h3>
+                                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                                        <Badge variant="outline">{student.grade ?? "Grade TBD"}</Badge>
+                                        <span>DOB · {formatDate(student.date_of_birth)}</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <Badge variant={statusTone[(student.status ?? "").toLowerCase()] ?? "outline"}>
+                                        {student.status ?? "Not set"}
+                                    </Badge>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <div className="space-y-2 rounded-lg border border-dashed border-border p-4">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Quick summary
+                                    </h4>
+                                    <p className="text-sm text-muted-foreground leading-relaxed">
+                                        Keeping {student.first_name}’s plan aligned with grade expectations and weekly
+                                        routines. Track new diagnostics from the edit page.
+                                    </p>
+                                </div>
+                                <div className="space-y-2 rounded-lg border border-dashed border-border p-4">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                        Actions
+                                    </h4>
+                                    <div className="flex flex-wrap gap-3">
+                                        <Button asChild variant="link" size="sm" className="px-0 text-primary">
+                                            <Link to={`/students/${student.id}`}>Open profile</Link>
+                                        </Button>
+                                        <Button asChild variant="outline" size="sm">
+                                            <Link to={`/students/${student.id}/edit`}>Edit</Link>
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                href="#"
+                                className={cn(meta.current_page <= 1 && "pointer-events-none opacity-50")}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    handleChangePage(meta.current_page - 1);
+                                }}
+                            />
+                        </PaginationItem>
+                        {Array.from({length: meta.last_page}).map((_, index) => {
+                            const pageNumber = index + 1;
+                            return (
+                                <PaginationItem key={pageNumber}>
+                                    <PaginationLink
+                                        href="#"
+                                        isActive={pageNumber === meta.current_page}
+                                        onClick={(event) => {
+                                            event.preventDefault();
+                                            handleChangePage(pageNumber);
+                                        }}
+                                    >
+                                        {pageNumber}
+                                    </PaginationLink>
+                                </PaginationItem>
+                            );
+                        })}
+                        <PaginationItem>
+                            <PaginationNext
+                                href="#"
+                                className={cn(meta.current_page >= meta.last_page && "pointer-events-none opacity-50")}
+                                onClick={(event) => {
+                                    event.preventDefault();
+                                    handleChangePage(meta.current_page + 1);
+                                }}
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
+            </>
+        );
+    };
 
     return (
         <div className="space-y-8 text-primary">
@@ -174,20 +340,11 @@ export default function Students() {
                                 <Input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search by student or guardian…"
+                                    placeholder="Search by student…"
                                     className="pl-9"
                                 />
                             </div>
-                            <Button
-                                variant="ghost"
-                                onClick={() => {
-                                    setSearch("");
-                                    setGrade(gradeOptions[0]);
-                                    setStatus("All statuses");
-                                    setTeacher(teacherOptions[0]);
-                                    setFiltersOpen(false);
-                                }}
-                            >
+                            <Button variant="ghost" onClick={resetFilters}>
                                 Reset
                             </Button>
                         </div>
@@ -216,48 +373,21 @@ export default function Students() {
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-foreground">Status</p>
-                                    <Select
-                                        value={status}
-                                        onValueChange={(value: "All statuses" | "Active" | "Onboarding" | "Archived") => setStatus(value)}
-                                    >
+                                    <Select value={status} onValueChange={(value) => setStatus(value)}>
                                         <SelectTrigger>
                                             <SelectValue placeholder="Status" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {statusOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <p className="text-sm font-medium text-foreground">Assigned teacher</p>
-                                    <Select value={teacher} onValueChange={(value) => setTeacher(value)}>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Teacher" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {teacherOptions.map((option) => (
-                                                <SelectItem key={option} value={option}>
-                                                    {option}
+                                                <SelectItem key={option.value} value={option.value}>
+                                                    {option.label}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
                                     </Select>
                                 </div>
                                 <div className="flex justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setGrade(gradeOptions[0]);
-                                            setStatus("All statuses");
-                                            setTeacher(teacherOptions[0]);
-                                            setFiltersOpen(false);
-                                        }}
-                                    >
+                                    <Button variant="ghost" size="sm" onClick={resetFilters}>
                                         Clear filters
                                     </Button>
                                 </div>
@@ -286,124 +416,9 @@ export default function Students() {
                 </CardContent>
             </Card>
 
-            <div className="space-y-6">
-                {paginatedStudents.length > 0 ? (
-                    <>
-                        <div className="flex flex-col gap-4">
-                            {paginatedStudents.map((student) => (
-                                <div
-                                    key={student.id}
-                                    className="flex flex-col gap-4 rounded-xl border border-border bg-card p-5 shadow-sm"
-                                >
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div className="space-y-1">
-                                            <h3 className="text-xl font-semibold text-foreground">{student.name}</h3>
-                                            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                                                <Badge variant="outline">{student.grade}</Badge>
-                                                <span>DOB · {student.dateOfBirth}</span>
-                                                <span>Teacher · {student.assignedTeacher}</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <Badge variant={statusTone[student.status.toLowerCase()] ?? "outline"}>
-                                                {student.status}
-                                            </Badge>
-                                            <span className="text-xs text-muted-foreground">Updated {student.lastUpdated}</span>
-                                        </div>
-                                    </div>
-
-                                    <div className="grid gap-4 md:grid-cols-2">
-                                        <div className="space-y-2 rounded-lg border border-dashed border-border p-4">
-                                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                Diagnoses & supports
-                                            </h4>
-                                            <div className="flex flex-wrap gap-2">
-                                                {student.diagnoses.map((diagnosis) => (
-                                                    <Badge key={diagnosis} variant="secondary">
-                                                        {diagnosis}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                            <p className="text-sm text-muted-foreground leading-relaxed">{student.notes}</p>
-                                        </div>
-                                        <div className="space-y-2 rounded-lg border border-dashed border-border p-4">
-                                            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary guardian</h4>
-                                            <p className="text-sm font-medium text-foreground">{student.primaryGuardian.name}</p>
-                                            <div className="flex flex-col text-sm text-muted-foreground">
-                                                <span>{student.primaryGuardian.email}</span>
-                                                <span>{student.primaryGuardian.phone}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex flex-wrap gap-3">
-                                        <Button asChild variant="link" size="sm" className="px-0 text-primary">
-                                            <Link to={`/students/${student.id}`}>Open profile</Link>
-                                        </Button>
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link to={`/students/${student.id}?tab=notes`}>Add note</Link>
-                                        </Button>
-                                        <Button asChild variant="outline" size="sm">
-                                            <Link to={`/students/${student.id}?tab=documents`}>Upload evidence</Link>
-                                        </Button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <Pagination>
-                            <PaginationContent>
-                                <PaginationItem>
-                                    <PaginationPrevious
-                                        href="#"
-                                        className={cn(currentPage === 1 && "pointer-events-none opacity-50")}
-                                        onClick={(event) => {
-                                            event.preventDefault();
-                                            handleChangePage(currentPage - 1);
-                                        }} size={"default"}                                    />
-                                </PaginationItem>
-                                {Array.from({length: totalPages}).map((_, index) => {
-                                    const pageNumber = index + 1;
-                                    return (
-                                        <PaginationItem key={pageNumber}>
-                                            <PaginationLink
-                                                href="#"
-                                                isActive={pageNumber === currentPage}
-                                                onClick={(event) => {
-                                                    event.preventDefault();
-                                                    handleChangePage(pageNumber);
-                                                }} size={"default"}                                            >
-                                                {pageNumber}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    );
-                                })}
-                                <PaginationItem>
-                                    <PaginationNext
-                                        href="#"
-                                        className={cn(currentPage === totalPages && "pointer-events-none opacity-50")}
-                                        onClick={(event) => {
-                                            event.preventDefault();
-                                            handleChangePage(currentPage + 1);
-                                        }} size={"default"}                                    />
-                                </PaginationItem>
-                            </PaginationContent>
-                        </Pagination>
-                    </>
-                ) : (
-                    <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-                            <CardTitle className="text-lg text-foreground">No students match your filters yet</CardTitle>
-                            <p className="max-w-md text-sm leading-relaxed">
-                                Adjust your filters or register a new student to see them listed here.
-                            </p>
-                            <Button asChild>
-                                <Link to="/students/create">Register student</Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+            <div className="space-y-6">{rosterContent()}</div>
         </div>
     );
-}
+};
+
+export default Students;

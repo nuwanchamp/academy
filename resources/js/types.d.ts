@@ -5,3 +5,8 @@ declare global {
         axios: typeof axios;
     }
 }
+
+declare module "*.svg" {
+    const content: string;
+    export default content;
+}

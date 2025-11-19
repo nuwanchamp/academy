@@ -19,6 +19,40 @@ The application will be organized by **Domain Contexts** rather than by technica
 -   **/Reporting**: Responsible for generating and retrieving student progress reports.
 -   **/ParentPortal**: Contains the logic specific to the parent-facing experience.
 
+## 1.1 User Personas & Stored Attributes
+
+Rainbow Roots supports three authenticated user personas plus the non-authenticated Student entity the system tracks. Capturing the right attributes up-front keeps policies, analytics, and integrations consistent across domains.
+
+### System Admin (staff user)
+
+- **Core fields**: `id`, `first_name`, `last_name`, `email`, `password_hash`, `role=admin`, `is_active`, `last_login_at`.
+- **Contact/localization**: `phone`, `preferred_locale`, `timezone` — required for cross-site deployments and notifications.
+- **Access scope**: `organization_id`, `super_admin` flag, optional `permissions` JSON/bitmask for feature toggles (e.g., impersonation, billing exports).
+- **Lifecycle**: `invited_at`, `activated_at`, `deactivated_at`, `password_updated_at` to satisfy the backlog’s “create/edit/deactivate accounts” story and support auditing.
+
+### Teacher (staff user)
+
+- Inherits the shared user columns above with `role=teacher` and adds `employee_code`, `hire_date`, `grade_band_focus`, `subjects`/`specializations` (array or relation) so admins can match caseloads to expertise.
+- **Caseload oversight**: `caseload_capacity`, `current_caseload` (materialized or derived), `assigned_site_id` for scheduling and reporting.
+- **Profile & preferences**: `bio`, `profile_photo_url`, `communication_preferences` (email/SMS/in-app) to power roster displays and progress notifications.
+- **Status tracking**: `last_sync_at` or `last_activity_at` for analytics around report freshness.
+
+### Parent / Guardian (family user)
+
+- Shares base user columns with `role=parent` plus `relationship_to_student` and `household_id` to model multi-child families.
+- **Contact info**: `primary_phone`, `secondary_phone`, `address_line1/2`, `city`, `state`, `postal_code`, `preferred_contact_times`, reflecting the parent forms already surfaced in the UI.
+- **Verification & notifications**: `identity_verified_at`, `communication_preferences`, `notification_opt_in` for compliance when sending lesson summaries or homework alerts.
+- **Student links**: many-to-many pivot `guardian_student` capturing `student_id`, `user_id`, `is_primary`, `access_level` (view-only vs. can comment) so admins can meet the “link parent accounts” story.
+
+### Student (tracked entity, no login)
+
+- Stored within the `StudentProfiles` context with `id`, `first_name`, `last_name`, `preferred_name`, `date_of_birth`, `grade`, `status` (`Active`, `Onboarding`, `Archived`), `diagnoses` (JSON/lookup), and `notes`.
+- **Ownership**: `teacher_id` (assigned educator), optional `case_manager_id`, plus the guardian pivot above to drive parent access.
+- **Education context**: `assessment_summary`, `ieps_or_goals` (JSON), `current_learning_path_id`, `start_date`, `risk_flags` for analytics and scheduling.
+- **Audit**: `created_by`, `updated_by`, timestamps to anchor reporting flows.
+
+These attributes feed both the REST API contracts (e.g., `/api/v1/login` returning role + locale) and downstream modules (student filters by teacher, parent dashboards, admin rosters). Future migrations should create dedicated profile tables (`teacher_profiles`, `guardian_profiles`) keyed to `users.id` to keep the core `users` table lean while respecting the architecture boundaries above.
+
 ## 2. Backend Technology Stack
 
 -   **Framework**: **Laravel 12** (or the latest stable version in 2025). It provides a robust, elegant, and productive development experience.
@@ -79,6 +113,13 @@ Registers a new user.
       "password_confirmation": "string"
     }
     ```
+
+## 7. Environment & Testing Posture
+
+- **Local runtime**: Target PostgreSQL 16+ using the provided Docker setup (e.g., `postgres:16`) so JSON/array columns behave the same as production. Keep migrations and seeds Postgres-friendly (UUIDs, enums) and avoid vendor-specific SQL when possible.
+- **Automated tests**: Pest runs against in-memory SQLite (`phpunit.xml` config) for speed. When adding Postgres-only features (JSONB operators, case-insensitive indexes), add feature tests that run against Postgres locally (`DB_CONNECTION=pgsql php artisan test`) before opening a PR.
+- **Seed data**: `php artisan migrate:fresh --seed` now provisions a default `admin/admin` account plus Faker-driven teacher/parent metadata so the React app immediately has realistic data to render.
+- **Queue/cache**: Use database drivers in development unless the story explicitly requires Redis; this minimizes external dependencies while we flesh out domains.
 -   **Response (201 Created)**:
     ```json
     {
@@ -122,6 +163,11 @@ Logs out the authenticated user.
 
 -   **Authentication**: Bearer Token required.
 -   **Response (204 No Content)**
+
+### Frontend Authentication Notes
+
+- The SPA uses Sanctum API tokens for authenticated requests. After `/api/v1/login`, the frontend stores the token (and user payload) in `localStorage` as `rr_token`/`rr_user` and globally configures Axios to send `Authorization: Bearer <token>` on every request. Any new HTTP client (page/component/hook) must either reuse the Axios instance from `resources/js/bootstrap.ts` or set the header manually, otherwise protected routes behind `auth:sanctum` respond with `401 Unauthenticated`.
+- CSRF protection still applies: the Axios bootstrap interceptor also forwards the `XSRF-TOKEN` cookie as `X-XSRF-TOKEN` so state-changing requests remain compliant.
 
 ### 6.2 Student Profiles
 

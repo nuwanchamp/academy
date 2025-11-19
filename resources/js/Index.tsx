@@ -1,3 +1,4 @@
+import "./bootstrap";
 import React, {useEffect} from 'react';
 import ReactDOM from 'react-dom/client';
 import {BrowserRouter, Routes, Route} from 'react-router-dom';
@@ -15,8 +16,9 @@ import PathView from "@/pages/PathView.tsx";
 import Students from "@/pages/Students.tsx";
 import Reports from "@/pages/Reports.tsx";
 import Settings from "@/pages/Settings.tsx";
-import {Create as NewStudent} from "@/pages/students/Create.tsx";
+import StudentCreate from "@/pages/students/Create.tsx";
 import Student from "@/pages/students/Student.tsx";
+import StudentEdit from "@/pages/students/StudentEdit.tsx";
 import ModuleCreate from "@/pages/ModuleCreate.tsx";
 import ModuleView from "@/pages/ModuleView.tsx";
 import ProgressTrackingReport from "@/pages/reports/ProgressTracking.tsx";
@@ -46,8 +48,9 @@ const Index: React.FC = () => {
                     <Route path="/reports/progress-tracking/:studentId" element={<StudentProgressReport />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/students" element={<Students />} />
-                    <Route path="/students/create" element={<NewStudent/>} />
+                    <Route path="/students/create" element={<StudentCreate/>} />
                     <Route path="/students/:id" element={<Student/>} />
+                    <Route path="/students/:id/edit" element={<StudentEdit/>} />
                     <Route path="/lessons/:id" element={<LessonView />} />
                 </Route>
             </Routes>

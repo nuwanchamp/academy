@@ -2,26 +2,32 @@
 
 namespace App\Contexts\UserManagement\Http\Controllers;
 
-use App\Contexts\UserManagement\Models\User;
+use App\Contexts\UserManagement\Actions\RegisterUserAction;
+use Illuminate\Contracts\View\View;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Routing\Redirector;
 
 class RegistrationController
 {
-
-    public function store(Request $request)
+    public function __construct(private readonly RegisterUserAction $registerUser)
     {
-        $request->validate([
+    }
+
+    public function create(): View
+    {
+        return view('landing');
+    }
+
+    public function store(Request $request): Redirector|RedirectResponse
+    {
+        $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
+        $user = ($this->registerUser)($validated);
 
         auth()->login($user);
 

@@ -58,18 +58,27 @@ export const Dashboard = () => {
             image: modulesImageSrc,
             label: t("quickActions.createModule"),
             alt: t("quickActions.createModule"),
+            onClick: () => {
+                navigate("/module/create");
+            },
         },
         {
             key: "createPath",
             image: pathsImageSrc,
             label: t("quickActions.createPath"),
             alt: t("quickActions.createPath"),
+            onClick: () => {
+                navigate("/path/create");
+            },
         },
         {
             key: "reports",
             image: reportsImageSrc,
             label: t("quickActions.reports"),
             alt: t("quickActions.reports"),
+            onClick: () => {
+                navigate("/reports");
+            },
         },
     ] as const;
 
