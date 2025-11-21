@@ -16,6 +16,8 @@ import PathView from "@/pages/PathView.tsx";
 import Students from "@/pages/Students.tsx";
 import Reports from "@/pages/Reports.tsx";
 import Settings from "@/pages/Settings.tsx";
+import StudySessions from "@/pages/StudySessions.tsx";
+import StudySessionsCalendar from "@/pages/StudySessionsCalendar.tsx";
 import StudentCreate from "@/pages/students/Create.tsx";
 import Student from "@/pages/students/Student.tsx";
 import StudentEdit from "@/pages/students/StudentEdit.tsx";
@@ -46,6 +48,9 @@ const Index: React.FC = () => {
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/reports/progress-tracking" element={<ProgressTrackingReport />} />
                     <Route path="/reports/progress-tracking/:studentId" element={<StudentProgressReport />} />
+                    <Route path="/study-sessions" element={<StudySessions />} />
+                    <Route path="/study-sessions/calendar" element={<StudySessionsCalendar />} />
+                    <Route path="/study-sessions/calendar/:date" element={<StudySessionsCalendar />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="/students" element={<Students />} />
                     <Route path="/students/create" element={<StudentCreate/>} />

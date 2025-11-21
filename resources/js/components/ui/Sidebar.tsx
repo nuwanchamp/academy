@@ -2,8 +2,11 @@ import {H1} from "@/components/ui/typography/h1.tsx";
 import {Logo} from "@/components/ui/Logo.tsx";
 import {
     LucideBadge,
-    LucideBookOpen, LucideChartArea,
-    LucideLayoutDashboard, LucideSettings,
+    LucideBookOpen,
+    LucideCalendarClock,
+    LucideChartArea,
+    LucideLayoutDashboard,
+    LucideSettings,
     LucideUsers
 } from "lucide-react";
 import NavLink from "@/components/ui/NavLink.tsx";
@@ -22,6 +25,7 @@ export const Sidebar = () => {
                     <NavLink icon={<LucideBookOpen/>} name={"Modules"} route={"/modules"}/>
                     <NavLink icon={<LucideBadge/>} name={"Learning Paths"} route={"/paths"}/>
                     <NavLink icon={<LucideUsers/>} name={"My Students"} route={"/students"}/>
+                    <NavLink icon={<LucideCalendarClock/>} name={"Study Sessions"} route={"/study-sessions"}/>
                     <NavLink icon={<LucideChartArea/>} name={"Reports"} route={"/reports"}/>
                 </nav>
             </div>

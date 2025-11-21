@@ -32,6 +32,12 @@ import {
 } from "@/components/ui/select.tsx";
 import {useNavigate} from "react-router-dom";
 import {useTranslation} from "react-i18next";
+import {useEffect, useMemo, useState} from "react";
+import {listStudySessions, StudySessionDTO} from "@/lib/scheduling.ts";
+import {Badge} from "@/components/ui/badge.tsx";
+import {CalendarClock, MapPin} from "lucide-react";
+import axios from "axios";
+import {cn} from "@/lib/utils.ts";
 
 const studentImageSrc = new URL("../../assets/students.svg", import.meta.url).href;
 const modulesImageSrc = new URL("../../assets/modules.svg", import.meta.url).href;
@@ -42,6 +48,62 @@ export const Dashboard = () => {
 
     const navigate = useNavigate();
     const {t} = useTranslation("dashboard");
+    const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+    const [sessions, setSessions] = useState<StudySessionDTO[]>([]);
+    const [calendarError, setCalendarError] = useState<string | null>(null);
+
+    useEffect(() => {
+        const loadSessions = async () => {
+            try {
+                const data = await listStudySessions();
+                setSessions(data ?? []);
+                setCalendarError(null);
+            } catch (err) {
+                const message = axios.isAxiosError(err) ? err.response?.data?.message ?? err.message : "Unable to load sessions.";
+                setCalendarError(message);
+            }
+        };
+        loadSessions();
+    }, []);
+
+    const formatCalendarKey = (date: Date) => date.toLocaleDateString("en-CA");
+    const occurrencesByDate = useMemo(() => {
+        const byDate: Record<string, Array<{ session: StudySessionDTO; starts_at: string; ends_at: string; status: string }>> = {};
+        sessions.forEach((session) => {
+            (session.occurrences ?? []).forEach((occurrence) => {
+                const key = occurrence.starts_at.slice(0, 10);
+                if (!byDate[key]) byDate[key] = [];
+                byDate[key].push({
+                    session,
+                    starts_at: occurrence.starts_at,
+                    ends_at: occurrence.ends_at,
+                    status: occurrence.status,
+                });
+            });
+        });
+        return byDate;
+    }, [sessions]);
+
+    const dayPlan = useMemo(() => {
+        if (!selectedDate) return [];
+        const key = formatCalendarKey(selectedDate);
+        return occurrencesByDate[key]?.sort((a, b) => a.starts_at.localeCompare(b.starts_at)) ?? [];
+    }, [selectedDate, occurrencesByDate]);
+
+    const formatTimeRange = (start: string, end: string) => {
+        const startDate = new Date(start.replace(" ", "T"));
+        const endDate = new Date(end.replace(" ", "T"));
+        const formatter = new Intl.DateTimeFormat(undefined, {hour: "2-digit", minute: "2-digit"});
+        return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
+    };
+
+    const handleDateNavigate = (date?: Date) => {
+        setSelectedDate(date);
+        if (date) {
+            const key = formatCalendarKey(date);
+            navigate(`/study-sessions/calendar/${key}`);
+        }
+    };
 
     const quickActions = [
         {
@@ -205,7 +267,80 @@ export const Dashboard = () => {
                             <P className={"text-xs mt-0"}>{t("widgets.calendar.subtitle")}</P>
                         </CardHeader>
                         <CardContent>
-                            <Calendar className={"w-full"}/>
+                            <Calendar
+                                className={"w-full"}
+                                selected={selectedDate}
+                                onSelect={handleDateNavigate}
+                                onDayClick={handleDateNavigate}
+                                modifiers={{
+                                    hasSession: (date) => {
+                                        const key = formatCalendarKey(date);
+                                        return Boolean(occurrencesByDate[key]?.length);
+                                    },
+                                }}
+                                modifiersClassNames={{
+                                    hasSession: "relative after:absolute after:inset-x-2 after:bottom-1 after:flex after:flex-wrap after:gap-1",
+                                }}
+                                dayContent={(date) => {
+                                    const key = formatCalendarKey(date);
+                                    const dots = occurrencesByDate[key] ?? [];
+                                    const colors = ["bg-primary", "bg-emerald-500", "bg-amber-500", "bg-rose-500"];
+                                    return (
+                                        <div className="relative flex size-full flex-col items-center justify-center">
+                                            <span>{date.getDate()}</span>
+                                            {dots.length > 0 && (
+                                                <div className="mt-0.5 flex flex-wrap items-center justify-center gap-0.5">
+                                                    {dots.slice(0, 4).map((_, idx) => (
+                                                        <span
+                                                            key={idx}
+                                                            className={cn(
+                                                                "h-1 w-1 rounded-full",
+                                                                colors[idx % colors.length]
+                                                            )}
+                                                        />
+                                                    ))}
+                                                    {dots.length > 4 && (
+                                                        <span className="text-[10px] text-muted-foreground leading-none">+{dots.length - 4}</span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                }}
+                            />
+                            {calendarError && (
+                                <p className="mt-3 text-xs text-destructive">{calendarError}</p>
+                            )}
+                            <div className="mt-4 space-y-2">
+                                <H3 className="text-sm font-semibold">Day plan</H3>
+                                {dayPlan.length === 0 ? (
+                                    <P className="text-xs text-muted-foreground">No study sessions this day.</P>
+                                ) : (
+                                    dayPlan.map(({session, starts_at, ends_at, status}) => (
+                                        <div key={`${session.id}-${starts_at}`} className="rounded-lg border px-3 py-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="font-medium">{session.title}</span>
+                                                <Badge variant={status === "cancelled" ? "outline" : "secondary"} className="uppercase">
+                                                    {status}
+                                                </Badge>
+                                            </div>
+                                            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                                <CalendarClock className="h-4 w-4" />
+                                                <span>{formatTimeRange(starts_at, ends_at)}</span>
+                                            </div>
+                                            {session.location && (
+                                                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span>{session.location}</span>
+                                                </div>
+                                            )}
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                Enrolled {session.enrolled_count}/{session.capacity} · Waitlist {session.waitlist_count}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </CardContent>
                     </Card>
                     <Card>
@@ -214,9 +349,16 @@ export const Dashboard = () => {
                             <P className={"text-xs mt-0"}>{t("widgets.upcoming.subtitle")}</P>
                         </CardHeader>
                         <CardContent className={"flex flex-col"}>
-                            <UpcomingEvent/>
-                            <UpcomingEvent/>
-                            <UpcomingEvent/>
+                            {dayPlan.slice(0, 3).map(({session, starts_at, ends_at}) => (
+                                <div key={`${session.id}-${starts_at}`} className="mb-3 last:mb-0">
+                                    <UpcomingEvent
+                                        title={session.title}
+                                        time={formatTimeRange(starts_at, ends_at)}
+                                        subtitle={`${session.enrolled_count} enrolled · Waitlist ${session.waitlist_count}`}
+                                    />
+                                </div>
+                            ))}
+                            {dayPlan.length === 0 && <P className="text-xs text-muted-foreground">Pick a date to see its sessions.</P>}
                         </CardContent>
                     </Card>
 

@@ -29,5 +29,20 @@ class DatabaseSeeder extends Seeder
             'activated_at' => now(),
             'password_updated_at' => now(),
         ]);
+
+        User::factory()->create([
+            'first_name' => 'Taylor',
+            'last_name' => 'Teacher',
+            'name' => 'tteacher',
+            'preferred_name' => 'Ms. Taylor',
+            'email' => 'teacher@example.com',
+            'role' => 'teacher',
+            'password' => Hash::make('secret123'),
+            'timezone' => config('app.timezone', 'UTC'),
+            'preferred_locale' => $defaultLocale,
+            'is_active' => true,
+            'activated_at' => now(),
+            'password_updated_at' => now(),
+        ]);
     }
 }

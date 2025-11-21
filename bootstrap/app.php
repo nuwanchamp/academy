@@ -2,6 +2,7 @@
 
 use App\Contexts\LearningPaths\Providers\LearningPathsServiceProvider;
 use App\Contexts\ParentPortal\Providers\ParentPortalServiceProvider;
+use App\Contexts\Scheduling\Providers\SchedulingServiceProvider;
 use App\Contexts\StudentProfiles\Providers\StudentProfilesServiceProvider;
 use App\Contexts\UserManagement\Providers\UserManagementServiceProvider;
 use Illuminate\Foundation\Application;
@@ -28,4 +29,5 @@ return Application::configure(basePath: dirname(__DIR__))
         StudentProfilesServiceProvider::class,
         LearningPathsServiceProvider::class,
         ParentPortalServiceProvider::class,
+        SchedulingServiceProvider::class,
     ])->create();

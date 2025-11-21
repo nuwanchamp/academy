@@ -17,11 +17,14 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  dayContent,
   ...props
 }: React.ComponentProps<typeof DayPicker> & {
   buttonVariant?: React.ComponentProps<typeof Button>["variant"]
+  dayContent?: (date: Date) => React.ReactNode
 }) {
   const defaultClassNames = getDefaultClassNames()
+  const BaseDayButton = components?.DayButton ?? CalendarDayButton
 
   return (
     <DayPicker
@@ -153,17 +156,19 @@ function Calendar({
             <ChevronDownIcon className={cn("size-4", className)} {...props} />
           )
         },
-        DayButton: CalendarDayButton,
-        WeekNumber: ({ children, ...props }) => {
-          return (
-            <td {...props}>
-              <div className="flex size-[--cell-size] items-center justify-center text-center">
-                {children}
-              </div>
-            </td>
-          )
-        },
         ...components,
+        DayButton: (dayButtonProps) => {
+          const content =
+            dayContent !== undefined ? (
+              <div className="flex h-full w-full items-center justify-center">
+                {dayContent(dayButtonProps.day.date)}
+              </div>
+            ) : (
+              dayButtonProps.children
+            )
+
+          return <BaseDayButton {...dayButtonProps}>{content}</BaseDayButton>
+        },
       }}
       {...props}
     />

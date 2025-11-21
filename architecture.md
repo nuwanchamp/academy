@@ -18,6 +18,7 @@ The application will be organized by **Domain Contexts** rather than by technica
 -   **/ProgressTracking**: Handles daily lessons, teacher notes, and evidence uploads.
 -   **/Reporting**: Responsible for generating and retrieving student progress reports.
 -   **/ParentPortal**: Contains the logic specific to the parent-facing experience.
+-   **/Scheduling**: Owns teacher-led study sessions, enrollment/waitlist rules, reminders, and calendar feeds.
 
 ## 1.1 User Personas & Stored Attributes
 

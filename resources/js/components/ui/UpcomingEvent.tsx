@@ -1,23 +1,28 @@
 import {H4} from "@/components/ui/typography/h4.tsx";
 import {P} from "@/components/ui/typography/P.tsx";
-import {LucideClock} from "lucide-react";
+import {LucideClock, MapPin} from "lucide-react";
 
-export default function UpcomingEvent() {
+type Props = {
+    title: string;
+    time: string;
+    subtitle?: string;
+    location?: string | null;
+};
+
+export default function UpcomingEvent({title, time, subtitle, location}: Props) {
     return (
-        <div className={"flex flex-row gap-4 items-start justify-start p-2 group hover:bg-primary/80 rounded-lg border-b border-gray-200 cursor-pointer"}>
-            <div className={"flex gap-1 p-2 flex-col items-center rounded  bg-gray-200 w-1/4"}>
-                <div>October</div>
-                <H4 className={"text-2xl"}>20</H4>
-                <P className={"text-gray-500 font-bold"}>Tuesday</P>
+        <div className={"flex flex-row gap-4 items-start justify-start p-3 group rounded-lg border border-gray-200 hover:border-primary/40 hover:bg-primary/5"}>
+            <div className={"flex flex-col justify-center items-center rounded bg-primary/10 px-3 py-2 text-xs font-semibold text-primary uppercase"}>
+                Soon
             </div>
-            <div className={" flex flex-col items-start justify-between w-3/4 group-hover:text-white"}>
+            <div className={"flex flex-col items-start justify-between w-full"}>
                 <div>
-                    <H4>Shenal JKody</H4>
-                    <P>Class room </P>
+                    <H4 className={"mb-1"}>{title}</H4>
+                    {subtitle && <P className={"text-xs text-muted-foreground"}>{subtitle}</P>}
                 </div>
-                <div className={"text-inherit flex flex-row gap-2"}>
-                    <LucideClock className={"block w-4"}/>
-                    <P>12.00 p.m</P>
+                <div className={"mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground"}>
+                    <span className={"inline-flex items-center gap-1"}><LucideClock className={"h-4 w-4"}/>{time}</span>
+                    {location && <span className={"inline-flex items-center gap-1"}><MapPin className={"h-4 w-4"}/>{location}</span>}
                 </div>
             </div>
         </div>
