@@ -1,15 +1,12 @@
-import React, {useEffect, useState} from "react";
-import {Link, useNavigate} from "react-router-dom";
-import {ArrowLeft, ArrowRight, Loader2, Lock, Mail} from "lucide-react";
-import axios from "axios";
+import React, {useCallback, useEffect, useState} from "react";
+import {useNavigate} from "react-router-dom";
+import {ArrowLeft, ArrowRight} from "lucide-react";
 
 import {Logo} from "@/components/ui/Logo.tsx";
 import {Button} from "@/components/ui/button.tsx";
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card.tsx";
 import {H1} from "@/components/ui/typography/h1.tsx";
 import {P} from "@/components/ui/typography/P.tsx";
-import {Input} from "@/components/ui/input.tsx";
-import {Label} from "@/components/ui/label.tsx";
+import LoginForm from "@/features/auth/components/LoginForm.tsx";
 
 
 const factSlides = [
@@ -35,16 +32,10 @@ const factSlides = [
 
 const Home: React.FC = () => {
     const [activeSlide, setActiveSlide] = useState(0);
-    const [credentials, setCredentials] = useState({identifier: "", password: ""});
-    const [loginFeedback, setLoginFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-    const [isLoggingIn, setIsLoggingIn] = useState(false);
-
-    const [forgotEmail, setForgotEmail] = useState("");
-    const [forgotFeedback, setForgotFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
-    const [isSendingLink, setIsSendingLink] = useState(false);
-    const [forgotOpen, setForgotOpen] = useState(false);
-
     const navigate = useNavigate();
+    const handleLoginSuccess = useCallback(() => {
+        navigate("/dashboard");
+    }, [navigate]);
 
     useEffect(() => {
         const timer = setInterval(() => {
@@ -61,73 +52,6 @@ const Home: React.FC = () => {
         );
     };
 
-    const summarizeError = (error: unknown): string => {
-        if (axios.isAxiosError(error)) {
-            const responseMessage = error.response?.data?.message;
-            const validationErrors = error.response?.data?.errors;
-
-            if (validationErrors) {
-                const firstKey = Object.keys(validationErrors)[0];
-                if (firstKey) {
-                    return validationErrors[firstKey][0];
-                }
-            }
-
-            if (typeof responseMessage === "string") {
-                return responseMessage;
-            }
-        }
-
-        return "Something went wrong. Please try again.";
-    };
-
-    const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setIsLoggingIn(true);
-        setLoginFeedback(null);
-
-        try {
-            const {data} = await axios.post("/api/v1/login", credentials);
-            localStorage.setItem("rr_token", data.token);
-            if (data.user) {
-                localStorage.setItem("rr_user", JSON.stringify(data.user));
-            }
-            const friendlyName = (data.user?.name || data.user?.email || "there").split(" ")[0];
-            setLoginFeedback({type: "success", message: `Welcome back, ${friendlyName}!`});
-            navigate('/dashboard');
-
-        } catch (error) {
-            debugger;
-            setLoginFeedback({type: "error", message: summarizeError(error)});
-        } finally {
-            setIsLoggingIn(false);
-        }
-    };
-
-    const handleForgotSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setIsSendingLink(true);
-        setForgotFeedback(null);
-
-        try {
-            const effectiveEmail = forgotEmail || (credentials.identifier.includes('@') ? credentials.identifier : "");
-
-            if (! effectiveEmail) {
-                setForgotFeedback({type: "error", message: "Please enter an email address."});
-                return;
-            }
-
-            await axios.post("/api/v1/password/forgot", {
-                email: effectiveEmail,
-            });
-            setForgotFeedback({type: "success", message: "Reset link on its way to your inbox."});
-        } catch (error) {
-            setForgotFeedback({type: "error", message: summarizeError(error)});
-        } finally {
-            setIsSendingLink(false);
-        }
-    };
-
     return (
         <div className="relative min-h-screen w-full lg:flex">
             <div className="pointer-events-none absolute left-1/2 top-1/2 z-20 hidden -translate-x-1/2 -translate-y-1/2 lg:flex">
@@ -137,137 +61,7 @@ const Home: React.FC = () => {
                 </div>
             </div>
             <section className="flex w-full flex-col justify-center bg-white px-6 py-12 dark:bg-slate-950 lg:order-2 lg:w-1/2 lg:px-14">
-                <div className="mx-auto w-full max-w-md space-y-10">
-                    <div className="space-y-3 text-left">
-                        <Logo className="h-10 w-auto lg:hidden"/>
-                        <P className=" text-center text-sm font-semibold uppercase tracking-[0.3em] text-primary">
-                            Welcome back
-                        </P>
-                    </div>
-                    <Card className="border-slate-200/80 shadow-lg dark:border-slate-800">
-                        <CardHeader>
-                            <CardTitle className="text-left text-2xl text-slate-900 dark:text-white">Account access</CardTitle>
-                            <P className="text-left text-sm text-slate-500 dark:text-slate-300">
-                                We’ll never share your credentials. Need an account? <Link to="/register" className="text-primary underline">Create one</Link>.
-                            </P>
-                        </CardHeader>
-                        <CardContent>
-                            <form className="space-y-6" onSubmit={handleLoginSubmit}>
-                                <div className="space-y-2">
-                                    <Label htmlFor="identifier" className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                                        Email or username
-                                    </Label>
-                                    <div className="relative">
-                                        <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/>
-                                        <Input
-                                            id="identifier"
-                                            type="text"
-                                            placeholder="you@rainbowroots.school or MsRivera"
-                                            className="pl-10"
-                                            value={credentials.identifier}
-                                            onChange={(event) => setCredentials((prev) => ({...prev, identifier: event.target.value}))}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-                                <div className="space-y-2">
-                                    <div className="flex items-center justify-between text-sm font-medium">
-                                        <Label htmlFor="password" className="text-slate-700 dark:text-slate-200">Password</Label>
-                                        <button
-                                            type="button"
-                                            className="text-primary transition hover:text-primary/80"
-                                            onClick={() => setForgotOpen((prev) => !prev)}
-                                        >
-                                            Forgot?
-                                        </button>
-                                    </div>
-                                    <div className="relative">
-                                        <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"/>
-                                        <Input
-                                            id="password"
-                                            type="password"
-                                            placeholder="••••••••"
-                                            className="pl-10"
-                                            value={credentials.password}
-                                            onChange={(event) => setCredentials((prev) => ({...prev, password: event.target.value}))}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                {loginFeedback && (
-                                    <div
-                                        className={`rounded-md border px-3 py-2 text-sm ${loginFeedback.type === "success" ? "border-emerald-300 bg-emerald-50 text-emerald-800" : "border-rose-300 bg-rose-50 text-rose-700"}`}
-                                        role="alert"
-                                    >
-                                        {loginFeedback.message}
-                                    </div>
-                                )}
-
-                                <Button size="lg" className="w-full text-base" type="submit" disabled={isLoggingIn}>
-                                    {isLoggingIn ? (
-                                        <span className="flex items-center justify-center gap-2">
-                                            <Loader2 className="h-4 w-4 animate-spin"/>
-                                            Signing in…
-                                        </span>
-                                    ) : (
-                                        "Sign in"
-                                    )}
-                                </Button>
-                                <div className="text-center text-sm text-slate-500 dark:text-slate-300">
-                                    By continuing you agree to the{" "}
-                                    <a href="#" className="text-primary underline underline-offset-4">usage policy</a>.
-                                </div>
-                            </form>
-
-                            {forgotOpen && (
-                                <div className="mt-8 border-t border-dashed border-slate-200 pt-6 dark:border-slate-800">
-                                    <p className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">
-                                        Need a reset link? We’ll email it to you.
-                                    </p>
-                                    <form className="space-y-4" onSubmit={handleForgotSubmit}>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="forgot-email" className="text-sm font-medium text-slate-600 dark:text-slate-200">
-                                                Email address
-                                            </Label>
-                                            <Input
-                                                id="forgot-email"
-                                                type="email"
-                                                placeholder="you@rainbowroots.school"
-                                                value={forgotEmail}
-                                                onChange={(event) => setForgotEmail(event.target.value)}
-                                                required={!credentials.identifier.includes('@')}
-                                            />
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                                                We’ll use this email if it’s different from the login form above.
-                                            </p>
-                                        </div>
-
-                                        {forgotFeedback && (
-                                            <div
-                                                className={`rounded-md border px-3 py-2 text-sm ${forgotFeedback.type === "success" ? "border-blue-300 bg-blue-50 text-blue-800" : "border-rose-300 bg-rose-50 text-rose-700"}`}
-                                                role="alert"
-                                            >
-                                                {forgotFeedback.message}
-                                            </div>
-                                        )}
-
-                                        <Button type="submit" variant="outline" className="w-full" disabled={isSendingLink}>
-                                            {isSendingLink ? (
-                                                <span className="flex items-center justify-center gap-2">
-                                                    <Loader2 className="h-4 w-4 animate-spin"/>
-                                                    Sending…
-                                                </span>
-                                            ) : (
-                                                "Email me a reset link"
-                                            )}
-                                        </Button>
-                                    </form>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
+                <LoginForm onLoginSuccess={handleLoginSuccess}/>
             </section>
 
             <section className="relative hidden w-full items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-900 px-6 py-12 text-white lg:order-1 lg:flex lg:w-1/2 lg:px-14">

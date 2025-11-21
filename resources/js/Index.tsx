@@ -27,7 +27,7 @@ import LessonView from "@/pages/LessonView.tsx";
 
 const Index: React.FC = () => {
     useEffect(() => {
-        axios.get('/sanctum/csrf-cookie');
+        axios.get('/sanctum/csrf-cookie').then(()=>{});
     }, []);
 
     return (
