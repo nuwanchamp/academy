@@ -1,4 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
+import {useNavigate, useParams} from "react-router-dom";
 import PageHeading from "@/components/ui/PageHeading.tsx";
 import {
     Card,
@@ -24,9 +25,9 @@ import {Checkbox} from "@/components/ui/checkbox.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Loader2} from "lucide-react";
 import {fetchModules} from "@/features/modules/services/moduleApi.ts";
-import {createPath} from "@/features/paths/services/pathApi.ts";
 import type {ModuleSummary} from "@/features/modules/types/module";
-import {useNavigate} from "react-router-dom";
+import {fetchPath, updatePath} from "@/features/paths/services/pathApi.ts";
+import type {PathDetail} from "@/features/paths/types/path.ts";
 
 const subjectAreas = [
     {value: "Mathematics", label: "Mathematics"},
@@ -56,8 +57,13 @@ const outcomeSuggestions = [
     "Students collaborate on a project presentation.",
 ];
 
-export default function PathCreate() {
+export default function PathEdit() {
+    const {id} = useParams();
     const navigate = useNavigate();
+
+    const [path, setPath] = useState<PathDetail | null>(null);
+    const [isLoadingPath, setIsLoadingPath] = useState(true);
+
     const [title, setTitle] = useState<string>("");
     const [summary, setSummary] = useState<string>("");
     const [objectivesInput, setObjectivesInput] = useState<string>("");
@@ -74,6 +80,33 @@ export default function PathCreate() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        const loadPath = async () => {
+            if (!id) return;
+            setIsLoadingPath(true);
+            try {
+                const data = await fetchPath(id);
+                setPath(data);
+                setTitle(data.title);
+                setSummary(data.summary ?? "");
+                setObjectivesInput((data.objectives ?? []).join("\n"));
+                setSuccessMetricsInput((data.success_metrics ?? []).join("\n"));
+                setPacing(data.pacing ?? "");
+                setVisibility(data.visibility ?? "private");
+                setReleaseDate(data.planned_release_date ?? "");
+                setSubject(data.subject ?? "");
+                setGradeBand(data.grade_band ?? "");
+                setSelectedModuleIds(data.modules?.map((module) => module.id) ?? []);
+            } catch (err) {
+                setError("Unable to load path.");
+            } finally {
+                setIsLoadingPath(false);
+            }
+        };
+
+        loadPath();
+    }, [id]);
+
+    useEffect(() => {
         const loadModules = async () => {
             setIsLoadingModules(true);
             try {
@@ -82,7 +115,17 @@ export default function PathCreate() {
                     grade_band: gradeBand || undefined,
                     per_page: 100,
                 });
-                setAvailableModules(response.data ?? []);
+                const existing = response.data ?? [];
+                const selectedExtras = (path?.modules ?? [])
+                    .filter((module) => !existing.find((item) => item.id === module.id))
+                    .map((module) => ({
+                        id: module.id,
+                        title: module.title,
+                        grade_band: module.grade_band ?? path?.grade_band ?? null,
+                        lessons_count: module.lessons_count ?? 0,
+                    } as ModuleSummary));
+
+                setAvailableModules([...existing, ...selectedExtras]);
             } catch (error) {
                 setAvailableModules([]);
             } finally {
@@ -91,7 +134,7 @@ export default function PathCreate() {
         };
 
         loadModules();
-    }, [subject, gradeBand]);
+    }, [gradeBand, path?.grade_band, path?.modules, subject]);
 
     const toggleModuleSelection = (id: number) => {
         setSelectedModuleIds((prev) =>
@@ -113,16 +156,6 @@ export default function PathCreate() {
         .map((line) => line.trim())
         .filter((line) => line.length > 0);
 
-    const generateCode = (value: string) => {
-        const base = value || "PATH";
-        const slug = base
-            .toUpperCase()
-            .replace(/[^A-Z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "")
-            .slice(0, 50);
-        return slug.startsWith("PATH") ? slug : `PATH-${slug || Date.now()}`;
-    };
-
     const handleSubmit = async (nextStatus: "draft" | "published") => {
         setIsSubmitting(true);
         setError(null);
@@ -131,9 +164,10 @@ export default function PathCreate() {
             setIsSubmitting(false);
             return;
         }
+
         try {
             const payload = {
-                code: generateCode(title),
+                code: path?.code ?? "PATH",
                 title,
                 summary: summary || null,
                 subject: subject || null,
@@ -150,19 +184,38 @@ export default function PathCreate() {
                 })),
             };
 
-            const created = await createPath(payload);
-            navigate(`/paths/${created.id}`);
+            const updated = await updatePath(id ?? "", payload);
+            navigate(`/paths/${updated.id}`);
         } catch (err) {
-            setError("Unable to save path right now. Please review fields and try again.");
+            setError("Unable to save changes right now. Please review fields and try again.");
         } finally {
             setIsSubmitting(false);
         }
     };
 
+    if (isLoadingPath) {
+        return (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="size-4 animate-spin"/>
+                <span>Loading path…</span>
+            </div>
+        );
+    }
+
+    if (!path) {
+        return (
+            <Card>
+                <CardContent className="py-10 text-center text-sm text-destructive">
+                    {error ?? "Path not found."}
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <div className="space-y-8">
             <div className="text-primary">
-                <PageHeading lead="Create" title="Learning Path"/>
+                <PageHeading lead="Edit" title="Learning Path"/>
             </div>
 
             <div className="flex flex-col gap-8 xl:flex-row">
@@ -170,7 +223,7 @@ export default function PathCreate() {
                     <Card>
                         <CardHeader>
                             <CardTitle>Path overview</CardTitle>
-                            <CardDescription>Outline the core details learners will see first.</CardDescription>
+                            <CardDescription>Update the core details learners will see first.</CardDescription>
                         </CardHeader>
                         <CardContent>
                             {error && (
@@ -357,7 +410,7 @@ export default function PathCreate() {
                                 {isSubmitting ? "Saving…" : "Save draft"}
                             </Button>
                             <Button disabled={isSubmitting} onClick={() => handleSubmit("published")}>
-                                {isSubmitting ? "Creating…" : "Create path"}
+                                {isSubmitting ? "Updating…" : "Update path"}
                             </Button>
                         </CardFooter>
                     </Card>
@@ -383,29 +436,9 @@ export default function PathCreate() {
                                             <SelectContent>
                                                 <SelectItem value="private">Private (draft)</SelectItem>
                                                 <SelectItem value="school">School team</SelectItem>
-                                                <SelectItem value="public">District-wide</SelectItem>
+                                                <SelectItem value="district">District-wide</SelectItem>
                                             </SelectContent>
                                         </Select>
-                                    </Field>
-                                    <Field>
-                                        <FieldLabel htmlFor="path-owner">
-                                            Path owner
-                                        </FieldLabel>
-                                        <Input
-                                            id="path-owner"
-                                            placeholder="Assign an educator"
-                                        />
-                                    </Field>
-                                    <Field orientation="horizontal" className="items-start">
-                                        <Checkbox id="notify-team"/>
-                                        <FieldContent>
-                                            <FieldLabel htmlFor="notify-team" className="font-medium">
-                                                Notify instructional team
-                                            </FieldLabel>
-                                            <FieldDescription>
-                                                Sends a summary email with the path overview.
-                                            </FieldDescription>
-                                        </FieldContent>
                                     </Field>
                                     <Field>
                                         <FieldLabel htmlFor="release-date">

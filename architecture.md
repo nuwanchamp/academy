@@ -52,6 +52,12 @@ Rainbow Roots supports three authenticated user personas plus the non-authentica
 - **Education context**: `assessment_summary`, `ieps_or_goals` (JSON), `current_learning_path_id`, `start_date`, `risk_flags` for analytics and scheduling.
 - **Audit**: `created_by`, `updated_by`, timestamps to anchor reporting flows.
 
+### Learning Paths implementation notes
+
+- Paths (programs) group multiple modules for a skill build. Schema: `paths` (`uuid`, `code`, `title`, `summary`, `subject`, `grade_band`, `status` draft/published/archived, `visibility` private/school/district, `pacing`, `objectives[]`, `success_metrics[]`, `planned_release_date`, `published_at`, `archived_at`, `owner_user_id`) and `path_modules` pivot with `sequence_order`.
+- Modules remain the atomic lesson container with authors/tags/materials; each path orders modules via `path_modules.sequence_order` and stores a cached `modules_count`.
+- API (Sanctum): `GET/POST/PATCH/DELETE /api/v1/paths` plus `GET /api/v1/paths/{path}` for detail with ordered modules and owner. Filters include subject, grade_band, status, visibility, and search on title/summary/code.
+
 These attributes feed both the REST API contracts (e.g., `/api/v1/login` returning role + locale) and downstream modules (student filters by teacher, parent dashboards, admin rosters). Future migrations should create dedicated profile tables (`teacher_profiles`, `guardian_profiles`) keyed to `users.id` to keep the core `users` table lean while respecting the architecture boundaries above.
 
 ## 2. Backend Technology Stack

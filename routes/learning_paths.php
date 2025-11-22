@@ -5,6 +5,11 @@ use App\Contexts\LearningPaths\Http\Controllers\Api\ShowModuleController;
 use App\Contexts\LearningPaths\Http\Controllers\Api\StoreModuleController;
 use App\Contexts\LearningPaths\Http\Controllers\Api\UpdateModuleController;
 use App\Contexts\LearningPaths\Http\Controllers\Api\DeleteModuleController;
+use App\Contexts\LearningPaths\Http\Controllers\Api\ListPathsController;
+use App\Contexts\LearningPaths\Http\Controllers\Api\ShowPathController;
+use App\Contexts\LearningPaths\Http\Controllers\Api\StorePathController;
+use App\Contexts\LearningPaths\Http\Controllers\Api\UpdatePathController;
+use App\Contexts\LearningPaths\Http\Controllers\Api\DeletePathController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['api', 'auth:sanctum'])
@@ -24,4 +29,19 @@ Route::middleware(['api', 'auth:sanctum'])
 
         Route::delete('modules/{module}', DeleteModuleController::class)
             ->name('modules.destroy');
+
+        Route::get('paths', ListPathsController::class)
+            ->name('paths.index');
+
+        Route::get('paths/{path}', ShowPathController::class)
+            ->name('paths.show');
+
+        Route::post('paths', StorePathController::class)
+            ->name('paths.store');
+
+        Route::patch('paths/{path}', UpdatePathController::class)
+            ->name('paths.update');
+
+        Route::delete('paths/{path}', DeletePathController::class)
+            ->name('paths.destroy');
     });

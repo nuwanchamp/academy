@@ -4,9 +4,11 @@ namespace App\Contexts\LearningPaths\Models;
 
 use App\Contexts\LearningPaths\Database\Factories\ModuleFactory;
 use App\Contexts\LearningPaths\Enums\ModuleStatus;
+use App\Contexts\LearningPaths\Models\Path;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
@@ -76,5 +78,11 @@ class Module extends Model
     public function tags(): HasMany
     {
         return $this->hasMany(ModuleTag::class);
+    }
+
+    public function paths(): BelongsToMany
+    {
+        return $this->belongsToMany(Path::class, 'path_modules')
+            ->withPivot('sequence_order');
     }
 }

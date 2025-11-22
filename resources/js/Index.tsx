@@ -13,6 +13,7 @@ import Modules from "@/pages/dashboard/Modules.tsx";
 import LearningPaths from "@/pages/LearningPaths.tsx";
 import PathCreate from "@/pages/PathCreate.tsx";
 import PathView from "@/pages/PathView.tsx";
+import PathEdit from "@/pages/PathEdit.tsx";
 import Students from "@/pages/Students.tsx";
 import Reports from "@/pages/Reports.tsx";
 import Settings from "@/pages/Settings.tsx";
@@ -47,6 +48,7 @@ const Index: React.FC = () => {
                     <Route path="/paths" element={<LearningPaths />} />
                     <Route path="/paths/create" element={<PathCreate />} />
                     <Route path="/paths/:id" element={<PathView />} />
+                    <Route path="/paths/:id/edit" element={<PathEdit />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/reports/progress-tracking" element={<ProgressTrackingReport />} />
                     <Route path="/reports/progress-tracking/:studentId" element={<StudentProgressReport />} />
