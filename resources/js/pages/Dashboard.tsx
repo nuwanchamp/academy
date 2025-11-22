@@ -35,7 +35,7 @@ import {useTranslation} from "react-i18next";
 import {useEffect, useMemo, useState} from "react";
 import {listStudySessions, StudySessionDTO} from "@/lib/scheduling.ts";
 import {Badge} from "@/components/ui/badge.tsx";
-import {CalendarClock, MapPin} from "lucide-react";
+import {AlertTriangle, Bell, CalendarClock, MapPin} from "lucide-react";
 import axios from "axios";
 import {cn} from "@/lib/utils.ts";
 
@@ -97,6 +97,43 @@ export const Dashboard = () => {
         return `${formatter.format(startDate)} – ${formatter.format(endDate)}`;
     };
 
+    const toMinutes = (value: string) => {
+        const parsed = new Date(value.replace(" ", "T"));
+        return parsed.getHours() * 60 + parsed.getMinutes();
+    };
+
+    const clamp = (min: number, value: number, max: number) => Math.max(min, Math.min(max, value));
+
+    const deriveTimeline = (events: typeof dayPlan) => {
+        const fallbackStart = 8 * 60;
+        const fallbackEnd = 18 * 60;
+        const padding = 60;
+        if (events.length === 0) {
+            const start = fallbackStart - padding;
+            const end = fallbackEnd + padding;
+            const startHour = Math.floor(start / 60);
+            const endHour = Math.ceil(end / 60);
+            return {
+                startMinutes: start,
+                totalMinutes: end - start,
+                hours: Array.from({length: endHour - startHour + 1}, (_, idx) => startHour + idx),
+            };
+        }
+        const minStart = Math.min(...events.map((e) => toMinutes(e.starts_at)));
+        const maxEnd = Math.max(...events.map((e) => toMinutes(e.ends_at)));
+        const start = Math.min(fallbackStart, Math.floor(minStart / 60) * 60) - padding;
+        const end = Math.max(fallbackEnd, Math.ceil(maxEnd / 60) * 60) + padding;
+        const startHour = Math.floor(start / 60);
+        const endHour = Math.ceil(end / 60);
+        return {
+            startMinutes: start,
+            totalMinutes: end - start,
+            hours: Array.from({length: endHour - startHour + 1}, (_, idx) => startHour + idx),
+        };
+    };
+
+    const timeline = useMemo(() => deriveTimeline(dayPlan), [dayPlan]);
+
     const handleDateNavigate = (date?: Date) => {
         setSelectedDate(date);
         if (date) {
@@ -104,6 +141,15 @@ export const Dashboard = () => {
             navigate(`/study-sessions/calendar/${key}`);
         }
     };
+
+    const notifications = useMemo(() => {
+        return dayPlan.slice(0, 4).map(({session, starts_at, ends_at, status}) => {
+            const message = status === "cancelled"
+                ? `${session.title} was cancelled`
+                : `${session.title} starts at ${formatTimeRange(starts_at, ends_at)}`;
+            return {id: `${session.id}-${starts_at}-note`, message, status};
+        });
+    }, [dayPlan]);
 
     const quickActions = [
         {
@@ -175,88 +221,111 @@ export const Dashboard = () => {
                         ))}
                     </div>
                     <div className={"w-full"}>
-                        <H3>{t("students.sectionTitle")}</H3>
-                        <div className={"mt-6 flex flex-row gap-4 justify-between mb-6"}>
-                            <div className="flex w-full max-w-sm items-center gap-2 text-inherit">
-                                <Input type="search" placeholder={t("students.searchPlaceholder")}/>
-                                <Button type="submit" variant="outline" className={" group hover:bg-primary cursor-pointer"}>
-                                    <LucideSearch className={"text-primary group-hover:text-white"}/>
-                                </Button>
+                        <H3>Day schedule</H3>
+                        <P className="text-sm text-muted-foreground mt-1">Time-aligned view of study sessions for the selected date.</P>
+                        <div className="flex flex-wrap gap-3 mt-3 items-center justify-between text-primary">
+                            <div className="text-sm text-muted-foreground">
+                                {selectedDate ? selectedDate.toLocaleDateString(undefined, {weekday: "long", month: "long", day: "numeric", year: "numeric"}) : ""}
                             </div>
-                            <div className={"text-primary"}>
-                                <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button  variant="ghost"><LucideFilter/></Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-80">
-                                        <div className="grid gap-4">
-                                            <div className="space-y-2">
-                                                <h4 className="leading-none font-medium">{t("students.filters.title")}</h4>
-                                                <p className="text-muted-foreground text-sm">
-                                                    {t("students.filters.description")}
-                                                </p>
+                            <div className="flex flex-wrap gap-2">
+                                <Button variant="outline" onClick={() => setSelectedDate(new Date())}>Today</Button>
+                                <Button variant="outline" onClick={() => setSelectedDate((prev) => new Date((prev ?? new Date()).getTime() - 24*60*60*1000))}>Back</Button>
+                                <Button variant="outline" onClick={() => setSelectedDate((prev) => new Date((prev ?? new Date()).getTime() + 24*60*60*1000))}>Next</Button>
+                            </div>
+                        </div>
+                        <div className="mt-4 grid grid-cols-[70px_1fr_70px] h-[820px] bg-muted/30 rounded-lg border overflow-hidden py-6">
+                            <div className="relative border-r bg-card/40">
+                                {timeline.hours.map((hour) => (
+                                    <div
+                                        key={`left-${hour}`}
+                                        className="absolute inset-x-0  border-muted-foreground/20"
+                                        style={{top: `${((hour * 60 - timeline.startMinutes) / timeline.totalMinutes) * 100}%`}}
+                                    >
+                                        <span className="absolute left-2 -translate-y-1/2 text-xs text-muted-foreground">
+                                            {`${((hour + 11) % 12) + 1} ${hour < 12 ? "AM" : "PM"}`}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="relative">
+                                {selectedDate && (() => {
+                                    const now = new Date();
+                                    const isToday = now.toDateString() === selectedDate.toDateString();
+                                    if (!isToday) return null;
+                                    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                                    const shadedPct = clamp(0, ((nowMinutes - timeline.startMinutes) / timeline.totalMinutes) * 100, 100);
+                                    return (
+                                        <>
+                                            <div
+                                                className="absolute inset-x-0 top-0 bg-muted/60"
+                                                style={{height: `${shadedPct}%`}}
+                                            />
+                                            <div
+                                                className="absolute inset-x-0 border-t border-primary/60"
+                                                style={{top: `${shadedPct}%`}}
+                                            >
+                                                <span className="absolute left-2 -translate-y-1/2 text-[11px] text-primary font-semibold bg-card px-1 rounded-sm">
+                                                    Now
+                                                </span>
                                             </div>
-                                            <div className="grid gap-2">
-                                                <div className="grid grid-cols-3 items-center gap-4">
-                                                    <Label>{t("students.filters.moduleCount")}</Label>
-                                                    <Input
-                                                        type={"number"}
-                                                        id="width"
-                                                        defaultValue="2"
-                                                        className="col-span-2 h-8"
-                                                    />
-                                                </div>
-                                                <div className="grid grid-cols-3 items-center gap-4">
-                                                    <Label>{t("students.filters.grade")}</Label>
-                                                    <Select>
-                                                        <SelectTrigger className="w-[180px]">
-                                                            <SelectValue placeholder={t("students.filters.gradePlaceholder")} />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectGroup>
-                                                                <SelectLabel>{t("students.filters.grade")}</SelectLabel>
-                                                                {gradeOptions.map((option) => (
-                                                                    <SelectItem key={option.value} value={option.value}>
-                                                                        {option.label}
-                                                                    </SelectItem>
-                                                                ))}
-                                                            </SelectGroup>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </div>
-                                                <div className="grid grid-cols-3 items-center gap-4">
-                                                    <Label>{t("students.filters.completion")}</Label>
-                                                    <Slider/>
-                                                </div>
+                                        </>
+                                    );
+                                })()}
+                                {timeline.hours.map((hour) => (
+                                    <div
+                                        key={`line-${hour}`}
+                                        className="absolute inset-x-0 border-t border-muted-foreground/15"
+                                        style={{top: `${((hour * 60 - timeline.startMinutes) / timeline.totalMinutes) * 100}%`}}
+                                    />
+                                ))}
+                                {dayPlan.map((occurrence, idx) => {
+                                    const start = clamp(0, toMinutes(occurrence.starts_at) - timeline.startMinutes, timeline.totalMinutes);
+                                    const end = clamp(0, toMinutes(occurrence.ends_at) - timeline.startMinutes, timeline.totalMinutes);
+                                    const minBlockPct = (48 / timeline.totalMinutes) * 100;
+                                    const height = Math.max(end - start, 30);
+                                    const top = (start / timeline.totalMinutes) * 100;
+                                    const blockHeight = Math.max((height / timeline.totalMinutes) * 100, minBlockPct);
+                                    const palette = ["bg-primary/10 border-primary/30", "bg-emerald-100/70 border-emerald-200", "bg-amber-100/70 border-amber-200", "bg-sky-100/70 border-sky-200", "bg-rose-100/70 border-rose-200"];
+                                    const color = palette[idx % palette.length];
+                                    return (
+                                        <div
+                                            key={`${occurrence.session.id}-${occurrence.starts_at}`}
+                                            className={cn("absolute left-2 right-2 rounded-lg border shadow-sm backdrop-blur p-3 text-sm", color)}
+                                            style={{top: `${top}%`, height: `${blockHeight}%`}}
+                                        >
+                                            <div className="font-semibold truncate">{occurrence.session.title}</div>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                                <CalendarClock className="h-4 w-4" />
+                                                <span>{formatTimeRange(occurrence.starts_at, occurrence.ends_at)}</span>
                                             </div>
+                                            {occurrence.session.location && (
+                                                <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                                    <MapPin className="h-4 w-4" />
+                                                    <span>{occurrence.session.location}</span>
+                                                </div>
+                                            )}
                                         </div>
-                                    </PopoverContent>
-                                </Popover>
+                                    );
+                                })}
+                                {dayPlan.length === 0 && (
+                                    <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
+                                        No sessions scheduled for this day.
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                        <div>
-                            <StudentCard/>
-                            <StudentCard/>
-                            <StudentCard/>
-                            <StudentCard/>
-                        </div>
-                        <div className={"text-primary mt-6"}>
-                            <Pagination>
-                                <PaginationContent>
-                                    <PaginationItem>
-                                        <PaginationPrevious href="#" size={"default"}/>
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationLink href="#" size={"default"}>1</PaginationLink>
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationEllipsis/>
-                                    </PaginationItem>
-                                    <PaginationItem>
-                                        <PaginationNext href="#" size={"default"}/>
-                                    </PaginationItem>
-                                </PaginationContent>
-                            </Pagination>
+                            <div className="relative border-l bg-card/40">
+                                {timeline.hours.map((hour) => (
+                                    <div
+                                        key={`right-${hour}`}
+                                        className="absolute inset-x-0 border-t border-transparent"
+                                        style={{top: `${((hour * 60 - timeline.startMinutes) / timeline.totalMinutes) * 100}%`}}
+                                    >
+                                        <span className="absolute right-2 -translate-y-1/2 text-xs text-muted-foreground">
+                                            {`${((hour + 11) % 12) + 1} ${hour < 12 ? "AM" : "PM"}`}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -311,54 +380,29 @@ export const Dashboard = () => {
                             {calendarError && (
                                 <p className="mt-3 text-xs text-destructive">{calendarError}</p>
                             )}
-                            <div className="mt-4 space-y-2">
-                                <H3 className="text-sm font-semibold">Day plan</H3>
-                                {dayPlan.length === 0 ? (
-                                    <P className="text-xs text-muted-foreground">No study sessions this day.</P>
-                                ) : (
-                                    dayPlan.map(({session, starts_at, ends_at, status}) => (
-                                        <div key={`${session.id}-${starts_at}`} className="rounded-lg border px-3 py-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium">{session.title}</span>
-                                                <Badge variant={status === "cancelled" ? "outline" : "secondary"} className="uppercase">
-                                                    {status}
-                                                </Badge>
-                                            </div>
-                                            <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                                <CalendarClock className="h-4 w-4" />
-                                                <span>{formatTimeRange(starts_at, ends_at)}</span>
-                                            </div>
-                                            {session.location && (
-                                                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                                    <MapPin className="h-4 w-4" />
-                                                    <span>{session.location}</span>
-                                                </div>
-                                            )}
-                                            <div className="mt-1 text-xs text-muted-foreground">
-                                                Enrolled {session.enrolled_count}/{session.capacity} · Waitlist {session.waitlist_count}
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
                         </CardContent>
                     </Card>
                     <Card>
                         <CardHeader className={"gap-0"}>
-                            <H3 className={"text-left mb-0"}>{t("widgets.upcoming.title")}</H3>
-                            <P className={"text-xs mt-0"}>{t("widgets.upcoming.subtitle")}</P>
+                            <H3 className={"text-left mb-0 flex items-center gap-2"}><Bell className="h-4 w-4" /> Notifications</H3>
+                            <P className={"text-xs mt-0"}>Recent session alerts</P>
                         </CardHeader>
-                        <CardContent className={"flex flex-col"}>
-                            {dayPlan.slice(0, 3).map(({session, starts_at, ends_at}) => (
-                                <div key={`${session.id}-${starts_at}`} className="mb-3 last:mb-0">
-                                    <UpcomingEvent
-                                        title={session.title}
-                                        time={formatTimeRange(starts_at, ends_at)}
-                                        subtitle={`${session.enrolled_count} enrolled · Waitlist ${session.waitlist_count}`}
-                                    />
-                                </div>
-                            ))}
-                            {dayPlan.length === 0 && <P className="text-xs text-muted-foreground">Pick a date to see its sessions.</P>}
+                        <CardContent className="space-y-3">
+                            {notifications.length === 0 ? (
+                                <P className="text-xs text-muted-foreground">Nothing new for this day.</P>
+                            ) : (
+                                notifications.map((note) => (
+                                    <div key={note.id} className="flex items-start gap-2 rounded-md border px-3 py-2">
+                                        <div className={cn(
+                                            "mt-0.5 rounded-full p-1",
+                                            note.status === "cancelled" ? "bg-rose-100 text-rose-700" : "bg-emerald-100 text-emerald-700"
+                                        )}>
+                                            {note.status === "cancelled" ? <AlertTriangle className="h-3 w-3" /> : <Bell className="h-3 w-3" />}
+                                        </div>
+                                        <div className="text-xs leading-relaxed text-foreground">{note.message}</div>
+                                    </div>
+                                ))
+                            )}
                         </CardContent>
                     </Card>
 

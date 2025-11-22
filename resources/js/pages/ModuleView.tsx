@@ -1,6 +1,5 @@
 import {useMemo} from "react";
-import {Link} from "react-router-dom";
-// import {useParams} from "react-router-dom";
+import {Link, useParams} from "react-router-dom";
 import PageHeading from "@/components/ui/PageHeading.tsx";
 import {
     Card,
@@ -13,106 +12,7 @@ import {Badge} from "@/components/ui/badge.tsx";
 import {Button} from "@/components/ui/button.tsx";
 import {Separator} from "@/components/ui/separator.tsx";
 import {ArrowRight, FileText} from "lucide-react";
-
-const moduleDetails = {
-    code: "MOD-EXPLR-001",
-    title: "Sensory Exploration Foundations",
-    status: "Published",
-    version: "v1.2 · Spring refresh",
-    updatedAt: "April 8, 2025",
-    summary:
-        "A five-lesson journey that helps learners notice, name, and regulate sensory input through guided exploration, reflection, and playful practice.",
-    objectives: [
-        "Build common vocabulary for the five core senses.",
-        "Introduce calming techniques that learners can practice independently.",
-        "Capture evidence of sensory preferences to inform personalised learning plans.",
-    ],
-    prerequisites: [
-        "Baseline sensory assessment completed",
-        "Sensory toolkit prepared (textured squares, scented markers, noise-cancelling headphones)",
-    ],
-    difficulty: "Beginner",
-    duration: "6 hours · 5 sessions",
-    learningType: "Hands-on",
-    tags: ["Sensory integration", "Self-regulation", "Communication"],
-    progressTracking:
-        "Daily micro-checkpoints captured by teachers and summarised in a weekly reflection, with visual progress charts shared to the parent portal.",
-    completionCriteria:
-        "All lessons marked complete, reflection journal submitted, and final sensory preference profile updated in the student record.",
-    feedbackStrategy:
-        "Teacher reflections captured in-app, parent feedback requested via automated prompt two days after the final lesson.",
-    author: {
-        name: "Alex Rivera",
-        role: "Lead Occupational Therapist",
-        bio: "Designs play-first interventions that blend sensory integration with social narratives.",
-        contactLinks: [
-            {label: "Email", href: "mailto:alex.rivera@example.com"},
-            {label: "LinkedIn", href: "https://www.linkedin.com/in/alex-rivera"},
-        ],
-    },
-    access: "Grade 3 Sensory Pathway educators, programme administrators",
-    lessons: [
-        {
-            id: "lesson-sensory-baseline",
-            order: 1,
-            title: "Sensory Welcome & Baseline",
-            focus:
-                "Introduces the class to the sensory toolkit, sets expectations, and captures a quick baseline check using visual emotion cards.",
-            outcomes: [
-                "Learners can name each sense and share one preferred stimulus.",
-                "Teacher records first impressions in the observation log.",
-            ],
-            materials: [
-                {name: "Lesson Slides", type: "pdf", size: "1.8 MB", url: "#"},
-                {
-                    name: "Classroom Setup Reference",
-                    type: "image",
-                    size: "640 KB",
-                    url: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=600&q=80",
-                },
-            ],
-        },
-        {
-            id: "lesson-calming-toolkit",
-            order: 2,
-            title: "Calming Toolkit Lab",
-            focus:
-                "Learners experiment with tactile, auditory, and visual stations to practise calming techniques and identify personal favourites.",
-            outcomes: [
-                "Each learner documents a calming technique they enjoyed.",
-                "Teacher captures short video snippets for evidence.",
-            ],
-            materials: [
-                {name: "Station Cards", type: "pdf", size: "950 KB", url: "#"},
-                {
-                    name: "Calming Toolkit Demo",
-                    type: "video",
-                    size: "45 MB",
-                    url: "https://samplelib.com/lib/preview/mp4/sample-5s.mp4",
-                },
-            ],
-        },
-        {
-            id: "lesson-reflection-stories",
-            order: 3,
-            title: "Reflection Stories",
-            focus:
-                "Students craft mini-stories about their sensory experiences using prompts and role-play, documenting moments of challenge and success.",
-            outcomes: [
-                "Learners articulate how the environment impacts their focus and comfort.",
-                "Teacher highlights strategies to carry into future modules.",
-            ],
-            materials: [
-                {
-                    name: "Story Prompt Cards",
-                    type: "image",
-                    size: "540 KB",
-                    url: "https://images.unsplash.com/photo-1510936111840-65e151ad71bb?auto=format&fit=crop&w=600&q=80",
-                },
-            ],
-        },
-    ],
-};
+import {useModule} from "@/features/modules/hooks/useModule.ts";
 
 const typeToBadgeVariant: Record<string, { label: string; variant?: "default" | "secondary" | "outline" }> = {
     pdf: {label: "PDF", variant: "secondary"},
@@ -122,18 +22,89 @@ const typeToBadgeVariant: Record<string, { label: string; variant?: "default" | 
     default: {label: "File", variant: "outline"},
 };
 
+const formatDate = (value?: string | null) => {
+    if (!value) {
+        return "—";
+    }
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+        return value;
+    }
+    return new Intl.DateTimeFormat(undefined, {month: "long", day: "numeric", year: "numeric"}).format(parsed);
+};
+
+const startCase = (value?: string | null) => {
+    if (!value) return "—";
+    return value.charAt(0).toUpperCase() + value.slice(1);
+};
+
 export default function ModuleView() {
-    // const {id} = useParams();
+    const {id} = useParams<{id: string}>();
+    const {module, isLoading, error, reload} = useModule(id);
+
+    const moduleDetails = useMemo(() => {
+        if (!module) {
+            return {
+                code: "—",
+                title: "Module",
+                status: "draft",
+                version_label: "",
+                updated_at: null,
+                summary: "",
+                objectives: [],
+                prerequisites: [],
+                difficulty: "",
+                estimated_duration: "",
+                learning_type: "",
+                tags: [],
+                progress_tracking: "",
+                completion_criteria: "",
+                feedback_strategy: "",
+                access_control: "",
+                lessons: [],
+                authors: [],
+            };
+        }
+        return module;
+    }, [module]);
 
     const computedStatusTone = useMemo(() => {
-        if (moduleDetails.status.toLowerCase() === "published") {
+        const statusValue = (moduleDetails.status ?? "").toLowerCase();
+        if (statusValue === "published") {
             return "default" as const;
         }
-        if (moduleDetails.status.toLowerCase() === "draft") {
+        if (statusValue === "draft") {
             return "secondary" as const;
         }
         return "outline" as const;
-    }, []);
+    }, [moduleDetails.status]);
+
+    if (isLoading) {
+        return (
+            <Card className="bg-gradient-to-r from-primary/10 to-primary/20">
+                <CardContent className="py-12 text-center text-primary">
+                    <CardTitle>Loading module…</CardTitle>
+                    <CardDescription>Fetching the latest details.</CardDescription>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="border-destructive/40 bg-destructive/5">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Unable to load module</CardTitle>
+                    <CardDescription>{error}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button variant="outline" onClick={reload}>
+                        Try again
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
 
     return (
         <div className="space-y-8">
@@ -142,7 +113,7 @@ export default function ModuleView() {
                 <CardContent className="flex flex-col gap-6 p-8 md:flex-row md:items-end md:justify-between">
                     <div className="space-y-4">
                         <Badge variant={computedStatusTone} className="w-fit uppercase tracking-wide">
-                            {moduleDetails.status}
+                            {startCase(moduleDetails.status)}
                         </Badge>
                         <div className="space-y-3 text-primary">
                             <PageHeading
@@ -150,24 +121,26 @@ export default function ModuleView() {
                                 title={moduleDetails.title}
                             />
                             <p className="max-w-2xl text-base text-muted-foreground">
-                                {moduleDetails.summary}
+                                {moduleDetails.summary || "No summary provided yet."}
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
                             <span className="rounded-full bg-white/60 px-3 py-1 font-medium text-primary">
-                                {moduleDetails.status}
+                                {startCase(moduleDetails.status)}
                             </span>
-                            <span>Version: <strong>{moduleDetails.version}</strong></span>
+                            <span>Version: <strong>{moduleDetails.version_label ?? "—"}</strong></span>
                             <Separator className="h-4 w-px bg-white"/>
-                            <span>Updated {moduleDetails.updatedAt}</span>
+                            <span>Updated {formatDate(moduleDetails.updated_at)}</span>
                             <Separator className="h-4 w-px bg-white"/>
-                            <span>Difficulty: {moduleDetails.difficulty}</span>
+                            <span>Difficulty: {moduleDetails.difficulty ?? "—"}</span>
                             <Separator className="h-4 w-px bg-white"/>
-                            <span>Duration: {moduleDetails.duration}</span>
+                            <span>Duration: {moduleDetails.estimated_duration ?? "—"}</span>
                         </div>
                     </div>
                     <div className="flex flex-col gap-3 text-sm">
-                        <Button size="lg">Edit Module</Button>
+                        <Button size="lg" asChild>
+                            <Link to={`/modules/${moduleDetails.id ?? id}/edit`}>Edit Module</Link>
+                        </Button>
                         <Button variant="outline" size="lg">
                             Share overview
                         </Button>
@@ -187,8 +160,8 @@ export default function ModuleView() {
                                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Learning
                                     objectives</h3>
                                 <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-                                    {moduleDetails.objectives.map((objective) => (
-                                        <li key={objective} className="flex items-start gap-2">
+                                    {(moduleDetails.objectives ?? ["No objectives documented."]).map((objective, idx) => (
+                                        <li key={`${objective}-${idx}`} className="flex items-start gap-2">
                                             <span className="mt-1 size-1.5 flex-shrink-0 rounded-full bg-primary"/>
                                             <span>{objective}</span>
                                         </li>
@@ -198,185 +171,182 @@ export default function ModuleView() {
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="rounded-lg border border-dashed border-border p-4">
                                     <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Prerequisites</h4>
-                                    <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-                                        {moduleDetails.prerequisites.map((item) => (
-                                            <li key={item}>{item}</li>
+                                    <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
+                                        {(moduleDetails.prerequisites ?? ["Not specified."]).map((item, idx) => (
+                                            <li key={`${item}-${idx}`} className="flex items-start gap-2">
+                                                <ArrowRight className="mt-0.5 h-3 w-3" />
+                                                <span>{item}</span>
+                                            </li>
                                         ))}
                                     </ul>
                                 </div>
                                 <div className="rounded-lg border border-dashed border-border p-4">
-                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tags</h4>
-                                    <div className="mt-3 flex flex-wrap gap-2">
-                                        {moduleDetails.tags.map((tag) => (
-                                            <Badge key={tag} variant="outline" className="bg-muted/40">
-                                                {tag}
-                                            </Badge>
-                                        ))}
-                                    </div>
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progress tracking</h4>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {moduleDetails.progress_tracking || "Describe how progress is captured for this module."}
+                                    </p>
                                 </div>
+                                <div className="rounded-lg border border-dashed border-border p-4">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completion criteria</h4>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {moduleDetails.completion_criteria || "Set clear completion rules for learners and staff."}
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-dashed border-border p-4">
+                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Feedback strategy</h4>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {moduleDetails.feedback_strategy || "Document how feedback is gathered and shared."}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="rounded-lg border border-dashed border-border p-4">
+                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access control</h4>
+                                <p className="mt-2 text-sm text-muted-foreground">
+                                    {moduleDetails.access_control || "Specify who can view or edit this module."}
+                                </p>
                             </div>
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle>Lesson timeline</CardTitle>
-                            <CardDescription>How the learning experience unfolds across sessions.</CardDescription>
+                            <CardTitle>Lessons</CardTitle>
+                            <CardDescription>Sequence of learning experiences inside this module.</CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <ol className="space-y-6">
-                                {moduleDetails.lessons.map((lesson, index) => (
-                                    <li key={lesson.title} className="relative pl-6">
-                                        {index !== moduleDetails.lessons.length - 1 && (
-                                            <span className="absolute left-[9px] top-6 h-full w-px bg-border"
-                                                  aria-hidden/>
-                                        )}
-                                        <span
-                                            className="absolute left-0 top-1 flex size-4 items-center justify-center rounded-full border border-primary bg-background text-xs font-semibold text-primary">
-                                            {index + 1}
-                                        </span>
-                                        <div
-                                            className="flex flex-col gap-3 rounded-xl border border-border bg-card p-5 shadow-sm">
-                                            <div className="flex flex-wrap items-center justify-between gap-2">
-                                                <div className="space-y-1">
-                                                    <h3 className="text-lg font-semibold text-primary">{lesson.title}</h3>
-                                                    <p className="text-sm text-muted-foreground leading-relaxed">{lesson.focus}</p>
-                                                </div>
-                                                <Badge
-                                                    variant="secondary">Lesson {String(lesson.order).padStart(2, "0")}</Badge>
-                                            </div>
-                                            <div>
-                                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Outcomes</h4>
-                                                <ul className="mt-2 space-y-2 text-sm leading-relaxed text-muted-foreground">
-                                                    {lesson.outcomes.map((outcome) => (
-                                                        <li key={outcome} className="flex items-start gap-2">
-                                                            <span
-                                                                className="mt-1 size-1.5 flex-shrink-0 rounded-full bg-primary/70"/>
-                                                            <span>{outcome}</span>
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
-                                            {lesson.materials.length > 0 && (
-                                                <div className="space-y-3">
-                                                    <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lesson
-                                                        materials</h4>
-                                                    <ul className="flex flex-col gap-2">
-                                                        {lesson.materials.map((asset) => {
-                                                            const badgeMeta = typeToBadgeVariant[asset.type] || typeToBadgeVariant.default;
-                                                            const isImage = asset.type === "image";
-
-                                                            return (
-                                                                <li
-                                                                    key={`${lesson.title}-${asset.name}`}
-                                                                    className="flex items-center justify-between gap-4 rounded-lg bg-muted/40 px-3 py-2"
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="size-10 rounded-md overflow-hidden bg-white/60 flex items-center justify-center">
-                                                                            {isImage ? (
-                                                                                <img
-                                                                                    src={asset.url}
-                                                                                    alt={asset.name}
-                                                                                    className="size-full object-cover"
-                                                                                />
-                                                                            ) : (
-                                                                                <FileText className="size-5 text-primary" />
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="flex flex-col gap-1">
-                                                                            <p className="text-sm font-medium leading-tight text-foreground break-all">
-                                                                                {asset.name}
-                                                                            </p>
-                                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                                <Badge variant={badgeMeta.variant}>{badgeMeta.label}</Badge>
-                                                                                <span>{asset.size}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-                                                                    <Button variant="ghost" size="sm" className="px-2" asChild>
-                                                                        <a
-                                                                            href={asset.url}
-                                                                            target="_blank"
-                                                                            rel="noopener noreferrer"
-                                                                        >
-                                                                            Preview
-                                                                        </a>
-                                                                    </Button>
-                                                                </li>
-                                                            );
-                                                        })}
-                                                    </ul>
-                                                </div>
-                                            )}
-                                            <Button variant="outline" size="sm" className="mt-3 w-fit gap-2" asChild>
-                                                <Link to={`/lessons/${lesson.id}`}>
-                                                    Open lesson
-                                                    <ArrowRight className="size-4" />
-                                                </Link>
-                                            </Button>
+                        <CardContent className="space-y-6">
+                            {(moduleDetails.lessons ?? []).map((lesson) => (
+                                <div key={lesson.id} className="rounded-xl border border-border p-4">
+                                    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                                        <div>
+                                            <p className="text-xs uppercase text-muted-foreground">Lesson {lesson.sequence_order}</p>
+                                            <h3 className="text-lg font-semibold text-foreground">{lesson.title}</h3>
                                         </div>
-                                    </li>
-                                ))}
-                            </ol>
+                                        <Badge variant="secondary">Sequence {lesson.sequence_order}</Badge>
+                                    </div>
+                                    <p className="mt-2 text-sm text-muted-foreground">{lesson.summary ?? "No summary provided."}</p>
+
+                                    {lesson.objectives && lesson.objectives.length > 0 && (
+                                        <div className="mt-3 space-y-2">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Objectives</p>
+                                            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                                {lesson.objectives.map((objective, idx) => (
+                                                    <li key={`${objective}-${idx}`}>{objective}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {lesson.outcomes && lesson.outcomes.length > 0 && (
+                                        <div className="mt-3 space-y-2">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Outcomes</p>
+                                            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                                                {lesson.outcomes.map((outcome, idx) => (
+                                                    <li key={`${outcome}-${idx}`}>{outcome}</li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+
+                                    {(lesson.materials?.length ?? 0) > 0 && (
+                                        <div className="mt-4 space-y-3">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Materials</p>
+                                            <div className="grid gap-3 md:grid-cols-2">
+                                                {lesson.materials?.map((material) => {
+                                                    const badge = typeToBadgeVariant[material.file_type ?? "default"] ?? typeToBadgeVariant.default;
+                                                    return (
+                                                        <div key={material.id ?? material.name} className="rounded-lg border border-border p-3">
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2">
+                                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                                    <span className="text-sm text-foreground">{material.name}</span>
+                                                                </div>
+                                                                <Badge variant={badge.variant ?? "outline"}>{badge.label}</Badge>
+                                                            </div>
+                                                            <p className="text-xs text-muted-foreground mt-1">
+                                                                {material.file_size_bytes ? `${Math.round(material.file_size_bytes / 1024)} KB` : ""}
+                                                            </p>
+                                                            {material.external_url && (
+                                                                <a
+                                                                    href={material.external_url}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="text-xs text-primary underline"
+                                                                >
+                                                                    Open asset
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+
+                            {(moduleDetails.lessons?.length ?? 0) === 0 && (
+                                <p className="text-sm text-muted-foreground">Lessons will appear here once added.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </div>
 
-                <div className="xl:w-80">
-                    <div className="flex w-full flex-col gap-6 rounded-xl bg-gray-100 p-5">
-                        <div className="space-y-3">
-                            <h3 className="text-lg font-semibold text-primary">Engagement & tracking</h3>
-                            <p className="text-sm text-muted-foreground leading-relaxed">
-                                How educators monitor momentum and signal completion.
-                            </p>
-                        </div>
-                        <Separator/>
-                        <div className="space-y-4 text-sm text-muted-foreground">
-                            <div>
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Progress
-                                    tracking</h4>
-                                <p className="mt-1 text-foreground leading-relaxed">{moduleDetails.progressTracking}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Completion
-                                    criteria</h4>
-                                <p className="mt-1 text-foreground leading-relaxed">{moduleDetails.completionCriteria}</p>
-                            </div>
-                            <div>
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Feedback
-                                    & rating</h4>
-                                <p className="mt-1 text-foreground leading-relaxed">{moduleDetails.feedbackStrategy}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <Card className="mt-4">
+                <div className="flex w-full flex-col gap-4 xl:w-1/3">
+                    <Card>
                         <CardHeader>
-                            <CardTitle>Ownership & access</CardTitle>
-                            <CardDescription>Administrative signals carried over from creation.</CardDescription>
+                            <CardTitle>Metadata</CardTitle>
+                            <CardDescription>
+                                Who it serves and how it’s positioned.
+                            </CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4 text-sm text-muted-foreground">
-                            <div>
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Author</h4>
-                                <p className="mt-1 text-base font-semibold text-foreground">{moduleDetails.author.name}</p>
-                                <p>{moduleDetails.author.role}</p>
-                                <p>{moduleDetails.author.bio}</p>
+                        <CardContent className="space-y-3 text-sm text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline">Subject</Badge>
+                                <span>{moduleDetails.subject ?? "—"}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline">Grade band</Badge>
+                                <span>{moduleDetails.grade_band ?? "—"}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge variant="outline">Learning type</Badge>
+                                <span>{moduleDetails.learning_type ?? "—"}</span>
                             </div>
                             <div className="flex flex-wrap gap-2">
-                                {moduleDetails.author.contactLinks.map((link) => (
-                                    <Button key={link.href} variant="outline" size="sm" asChild>
-                                        <a href={link.href} target="_blank" rel="noopener noreferrer">
-                                            {link.label}
-                                        </a>
-                                    </Button>
+                                {(moduleDetails.tags ?? []).map((tag) => (
+                                    <Badge key={tag} variant="secondary">{tag}</Badge>
                                 ))}
                             </div>
-                            <Separator/>
-                            <div>
-                                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Access
-                                    control</h4>
-                                <p className="mt-1 text-foreground leading-relaxed">{moduleDetails.access}</p>
-                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Authors</CardTitle>
+                            <CardDescription>Who shaped this module.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3 text-sm text-muted-foreground">
+                            {(moduleDetails.authors ?? []).map((author) => (
+                                <div key={author.id ?? author.name} className="rounded-lg border border-border p-3">
+                                    <p className="text-foreground font-medium">{author.name}</p>
+                                    <p>{author.role ?? "Author"}</p>
+                                    {author.bio && <p className="mt-2 text-xs">{author.bio}</p>}
+                                    {(author.contact_links ?? []).map((link) => (
+                                        <a
+                                            key={link.href}
+                                            href={link.href}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="mt-1 block text-xs text-primary underline"
+                                        >
+                                            {link.label}
+                                        </a>
+                                    ))}
+                                </div>
+                            ))}
+                            {(moduleDetails.authors?.length ?? 0) === 0 && (
+                                <p className="text-sm">No authors recorded.</p>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

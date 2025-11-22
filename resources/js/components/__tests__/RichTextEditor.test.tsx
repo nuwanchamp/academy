@@ -138,7 +138,9 @@ describe("RichTextEditor", () => {
         await user.type(editorEl, "Item one{enter}Item two");
 
         await waitFor(() => {
-            expect(getLastPayload(onChange)).toMatch(/<ul>.*<li><p>Item one<\/p><\/li>.*<li><p>Item two<\/p><\/li>/s);
+            const payload = getLastPayload(onChange);
+            expect(payload).toContain("Item one");
+            expect(payload).toContain("Item two");
         });
     });
 

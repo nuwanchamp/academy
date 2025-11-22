@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent} from "react";
-import {createModule} from "@/features/modules/services/moduleApi";
+import {useParams} from "react-router-dom";
 import PageHeading from "@/components/ui/PageHeading.tsx";
 import {
     Card,
@@ -21,6 +21,8 @@ import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs.tsx
 import {FileText, UploadCloud, X} from "lucide-react";
 import {cn} from "@/lib/utils.ts";
 import RichTextEditor from "@/components/RichTextEditor.tsx";
+import {useModule} from "@/features/modules/hooks/useModule.ts";
+import {updateModule} from "@/features/modules/services/moduleApi.ts";
 
 interface LessonMediaAsset {
     id: string;
@@ -46,7 +48,9 @@ const subjectOptions = ["Wellness", "Literacy", "Science", "Mathematics", "Arts"
 const gradeBandOptions = ["Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
 const statusOptions = ["draft", "published", "archived"] as const;
 
-export default function ModuleCreate() {
+const ModuleEdit = () => {
+    const {id} = useParams<{id: string}>();
+    const {module, isLoading, error, reload} = useModule(id);
     const [moduleFields, setModuleFields] = useState({
         code: "",
         title: "",
@@ -266,11 +270,60 @@ export default function ModuleCreate() {
         setModuleFields((prev) => ({...prev, [field]: value}));
     };
 
+    useEffect(() => {
+        if (!module) {
+            return;
+        }
+
+        const firstAuthor = module.authors?.[0] ?? null;
+        const mappedLessons: LessonFormData[] = (module.lessons ?? []).map((lesson, idx) => ({
+            id: `lesson-${idx + 1}`,
+            title: lesson.title ?? "",
+            order: String(lesson.sequence_order ?? idx + 1),
+            summary: lesson.summary ?? "",
+            objectives: (lesson.objectives ?? []).join("\n"),
+            outcomes: (lesson.outcomes ?? []).join("\n"),
+            body: lesson.body ?? "",
+            instructions: lesson.instructions ?? "",
+            media: [],
+        }));
+
+        setLessons(mappedLessons.length > 0 ? mappedLessons : lessons);
+        setActiveLesson(mappedLessons[0]?.id ?? "lesson-1");
+
+        setModuleFields({
+            code: module.code ?? "",
+            title: module.title ?? "",
+            summary: module.summary ?? "",
+            objectives: (module.objectives ?? []).join("\n"),
+            prerequisites: (module.prerequisites ?? []).join("\n"),
+            subject: module.subject ?? "",
+            gradeBand: module.grade_band ?? "",
+            difficulty: module.difficulty ?? "",
+            duration: module.estimated_duration ?? "",
+            learningType: module.learning_type ?? "",
+            tags: (module.tags ?? []).join(", "),
+            authorName: firstAuthor?.name ?? "",
+            authorBio: firstAuthor?.bio ?? "",
+            authorLinks: (firstAuthor?.contact_links ?? [])
+                .map((link) => `${link.label ?? "Link"} | ${link.href}`)
+                .join("\n"),
+            version: module.version_label ?? "",
+            status: (module.status ?? "draft").toLowerCase(),
+            accessControl: module.access_control ?? "",
+            progressTracking: module.progress_tracking ?? "",
+            completionCriteria: module.completion_criteria ?? "",
+            feedbackStrategy: module.feedback_strategy ?? "",
+            publishedAt: module.published_at ?? "",
+            archivedAt: module.archived_at ?? "",
+        });
+    }, [module]);
+
     const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
         event?.preventDefault();
         resetFeedback();
 
-        if (!moduleFields.code.trim() || !moduleFields.title.trim()) {
+        if (!moduleFields.code.trim() || !moduleFields.title.trim() || !module?.id) {
             setErrors({
                 code: moduleFields.code ? "" : "Module code is required.",
                 title: moduleFields.title ? "" : "Module title is required.",
@@ -334,11 +387,12 @@ export default function ModuleCreate() {
             }));
 
         try {
-            await createModule(payload);
-            setFeedback("Module saved successfully.");
-        } catch (error) {
-            if (error && typeof error === "object" && "response" in error && (error as any).response?.status === 422) {
-                const validationErrors = (error as any).response?.data?.errors ?? {};
+            await updateModule(module.id, payload);
+            setFeedback("Module updated successfully.");
+        } catch (err) {
+            const isValidationError = err && typeof err === "object" && "response" in err && (err as any).response?.status === 422;
+            if (isValidationError) {
+                const validationErrors = (err as any).response?.data?.errors ?? {};
                 const mapped: Record<string, string> = {};
                 Object.entries(validationErrors).forEach(([key, messages]) => {
                     mapped[key] = Array.isArray(messages) ? messages[0] : "Invalid value";
@@ -346,17 +400,44 @@ export default function ModuleCreate() {
                 setErrors(mapped);
                 setFeedback("Please correct the highlighted fields.");
             } else {
-                setFeedback("Unable to save the module. Please try again.");
+                setFeedback("Unable to update the module. Please try again.");
             }
         } finally {
             setIsSaving(false);
         }
     };
 
+    if (isLoading) {
+        return (
+            <Card className="bg-gradient-to-r from-primary/10 to-primary/20">
+                <CardContent className="py-12 text-center text-primary">
+                    <CardTitle>Loading module…</CardTitle>
+                    <CardDescription>Fetching the latest details.</CardDescription>
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card className="border-destructive/40 bg-destructive/5">
+                <CardHeader>
+                    <CardTitle className="text-destructive">Unable to load module</CardTitle>
+                    <CardDescription>{error}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Button variant="outline" onClick={reload}>
+                        Try again
+                    </Button>
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
         <>
             <div className="text-primary">
-                <PageHeading lead="New" title="Module"/>
+                <PageHeading lead="Edit" title="Module" />
             </div>
             {feedback && (
                 <div className="mt-4 rounded-md border bg-muted/40 px-4 py-3 text-sm text-foreground">
@@ -370,7 +451,7 @@ export default function ModuleCreate() {
                             <CardHeader>
                                 <CardTitle>Module Blueprint</CardTitle>
                                 <CardDescription>
-                                    Capture the essentials that teachers and learners rely on when delivering this learning experience.
+                                    Update the essentials for this module.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -476,279 +557,279 @@ export default function ModuleCreate() {
                                         />
                                     </Field>
                                     <Field>
-        <FieldLabel htmlFor="module-completion">Completion criteria</FieldLabel>
-        <Textarea
-            id="module-completion"
-            placeholder="Define what completion looks like."
-            rows={3}
-            value={moduleFields.completionCriteria}
-            onChange={(event) => handleModuleField("completionCriteria")(event.target.value)}
-        />
-    </Field>
-    <Field>
-        <FieldLabel htmlFor="module-feedback">Feedback strategy</FieldLabel>
-        <Textarea
-            id="module-feedback"
-            placeholder="Document how feedback is gathered and shared."
-            rows={3}
-            value={moduleFields.feedbackStrategy}
-            onChange={(event) => handleModuleField("feedbackStrategy")(event.target.value)}
-        />
-    </Field>
+                                        <FieldLabel htmlFor="module-completion">Completion criteria</FieldLabel>
+                                        <Textarea
+                                            id="module-completion"
+                                            placeholder="Define what completion looks like."
+                                            rows={3}
+                                            value={moduleFields.completionCriteria}
+                                            onChange={(event) => handleModuleField("completionCriteria")(event.target.value)}
+                                        />
+                                    </Field>
+                                    <Field>
+                                        <FieldLabel htmlFor="module-feedback">Feedback strategy</FieldLabel>
+                                        <Textarea
+                                            id="module-feedback"
+                                            placeholder="Document how feedback is gathered and shared."
+                                            rows={3}
+                                            value={moduleFields.feedbackStrategy}
+                                            onChange={(event) => handleModuleField("feedbackStrategy")(event.target.value)}
+                                        />
+                                    </Field>
                                 </FieldGroup>
                             </CardContent>
                         </Card>
-                            <div className="flex flex-col gap-4 mt-6 text-primary">
-                                <Tabs
-                                    value={activeLesson}
-                                    onValueChange={setActiveLesson}
-                                    className="w-full"
-                                >
-                                    <div className="flex items-center justify-between gap-2 flex-wrap">
-                                        <TabsList>
-                                            {lessons.map((lesson, index) => (
-                                                <TabsTrigger key={lesson.id} value={lesson.id}>
-                                                    Lesson {String(index + 1).padStart(2, "0")}
-                                                </TabsTrigger>
-                                            ))}
-                                        </TabsList>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            type="button"
-                                            onClick={addNewLesson}
-                                        >
-                                            + New lesson
-                                        </Button>
-                                    </div>
-                                    {lessons.map((lesson, index) => {
-                                        const isActive = activeLesson === lesson.id;
-                                        const isDragging = draggingLessonId === lesson.id;
+                        <div className="flex flex-col gap-4 mt-6 text-primary">
+                            <Tabs
+                                value={activeLesson}
+                                onValueChange={setActiveLesson}
+                                className="w-full"
+                            >
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <TabsList>
+                                        {lessons.map((lesson, index) => (
+                                            <TabsTrigger key={lesson.id} value={lesson.id}>
+                                                Lesson {String(index + 1).padStart(2, "0")}
+                                            </TabsTrigger>
+                                        ))}
+                                    </TabsList>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        type="button"
+                                        onClick={addNewLesson}
+                                    >
+                                        + New lesson
+                                    </Button>
+                                </div>
+                                {lessons.map((lesson, index) => {
+                                    const isActive = activeLesson === lesson.id;
+                                    const isDragging = draggingLessonId === lesson.id;
 
-                                        return (
-                                            <TabsContent key={lesson.id} value={lesson.id} className="mt-4">
-                                                <Card className={cn(isActive ? "" : "")}>
-                                                    <CardContent className="flex flex-col gap-8">
-                                                        <div className="flex flex-col gap-4">
-                                                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                                Core Identity
-                                                            </span>
-                                                            <FieldGroup>
-                                                                <div className="grid grid-cols-2 gap-4">
-                                                                    <Field>
-                                                                        <FieldLabel htmlFor={`lesson-${index}-title`}>Title</FieldLabel>
-                                                                        <Input
-                                                                            id={`lesson-${index}-title`}
-                                                                            placeholder="Exploring Sensory Inputs"
-                                                                            value={lesson.title}
-                                                                            onChange={(event) =>
-                                                                                handleLessonFieldChange(lesson.id, "title", event.target.value)
-                                                                            }
-                                                                        />
-                                                                    </Field>
-                                                                    <Field>
-                                                                        <FieldLabel htmlFor={`lesson-${index}-order`}>Order / sequence number</FieldLabel>
-                                                                        <Input
-                                                                            id={`lesson-${index}-order`}
-                                                                            type="number"
-                                                                            value={lesson.order}
-                                                                            onChange={(event) =>
-                                                                                handleLessonFieldChange(lesson.id, "order", event.target.value)
-                                                                            }
-                                                                            min="1"
-                                                                            placeholder="1"
-                                                                        />
-                                                                    </Field>
-                                                                </div>
+                                    return (
+                                        <TabsContent key={lesson.id} value={lesson.id} className="mt-4">
+                                            <Card className={cn(isActive ? "" : "")}>
+                                                <CardContent className="flex flex-col gap-8">
+                                                    <div className="flex flex-col gap-4">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                            Core Identity
+                                                        </span>
+                                                        <FieldGroup>
+                                                            <div className="grid grid-cols-2 gap-4">
                                                                 <Field>
-                                                                    <FieldLabel htmlFor={`lesson-${index}-summary`}>Description / summary</FieldLabel>
-                                                                    <Textarea
-                                                                        id={`lesson-${index}-summary`}
-                                                                        placeholder="Outline the focus of this lesson and the learner experience."
-                                                                        rows={3}
-                                                                        value={lesson.summary}
+                                                                    <FieldLabel htmlFor={`lesson-${index}-title`}>Title</FieldLabel>
+                                                                    <Input
+                                                                        id={`lesson-${index}-title`}
+                                                                        placeholder="Exploring Sensory Inputs"
+                                                                        value={lesson.title}
                                                                         onChange={(event) =>
-                                                                            handleLessonFieldChange(lesson.id, "summary", event.target.value)
+                                                                            handleLessonFieldChange(lesson.id, "title", event.target.value)
                                                                         }
                                                                     />
                                                                 </Field>
                                                                 <Field>
-                                                                    <FieldLabel htmlFor={`lesson-${index}-objectives`}>Objectives / learning outcomes</FieldLabel>
-                                                                        <Textarea
-                                                                            id={`lesson-${index}-objectives`}
-                                                                            placeholder="List specific skills or knowledge students should demonstrate after this lesson."
-                                                                            rows={3}
-                                                                            value={lesson.objectives}
-                                                                            onChange={(event) =>
-                                                                                handleLessonFieldChange(lesson.id, "objectives", event.target.value)
-                                                                            }
-                                                                        />
-                                                                    </Field>
-                                                                    <Field>
-                                                                        <FieldLabel htmlFor={`lesson-${index}-outcomes`}>Outcomes / evidence</FieldLabel>
-                                                                        <Textarea
-                                                                            id={`lesson-${index}-outcomes`}
-                                                                            placeholder="Capture observable outcomes or evidence collected in this lesson."
-                                                                            rows={3}
-                                                                            value={lesson.outcomes}
-                                                                            onChange={(event) =>
-                                                                                handleLessonFieldChange(lesson.id, "outcomes", event.target.value)
-                                                                            }
-                                                                        />
-                                                                    </Field>
-                                                            </FieldGroup>
-                                                        </div>
-                                                        <div className="flex flex-col gap-4">
-                                                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                                Content
-                                                            </span>
-                                                            <FieldGroup>
-                                                                <Field>
-                                                                    <FieldLabel htmlFor={`lesson-${index}-body`}>Body / content blocks</FieldLabel>
-                                                                    <RichTextEditor
-                                                                        id={`lesson-${index}-body`}
-                                                                        value={lesson.body}
-                                                                        onChange={(value) => handleLessonFieldChange(lesson.id, "body", value)}
-                                                                        placeholder="Add the core delivery content, including text, slide notes, scripts, or embed instructions."
-                                                                        minHeight={280}
+                                                                    <FieldLabel htmlFor={`lesson-${index}-order`}>Order / sequence number</FieldLabel>
+                                                                    <Input
+                                                                        id={`lesson-${index}-order`}
+                                                                        type="number"
+                                                                        value={lesson.order}
+                                                                        onChange={(event) =>
+                                                                            handleLessonFieldChange(lesson.id, "order", event.target.value)
+                                                                        }
+                                                                        min="1"
+                                                                        placeholder="1"
                                                                     />
                                                                 </Field>
-                                                                <Field>
-                                                                    <FieldLabel htmlFor={`lesson-${index}-instructions`}>Facilitation instructions</FieldLabel>
-                                                                    <RichTextEditor
-                                                                        id={`lesson-${index}-instructions`}
-                                                                        value={lesson.instructions}
-                                                                        onChange={(value) => handleLessonFieldChange(lesson.id, "instructions", value)}
-                                                                        placeholder="Capture reminders for facilitators: tone-setting, materials prep, or cross-lesson scaffolds."
-                                                                        minHeight={220}
-                                                                    />
-                                                                </Field>
-                                                                <Field>
-                                                                    <FieldLabel htmlFor={`lesson-${index}-media`}>Media assets</FieldLabel>
-                                                                    <div
+                                                            </div>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-summary`}>Description / summary</FieldLabel>
+                                                                <Textarea
+                                                                    id={`lesson-${index}-summary`}
+                                                                    placeholder="Outline the focus of this lesson and the learner experience."
+                                                                    rows={3}
+                                                                    value={lesson.summary}
+                                                                    onChange={(event) =>
+                                                                        handleLessonFieldChange(lesson.id, "summary", event.target.value)
+                                                                    }
+                                                                />
+                                                            </Field>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-objectives`}>Objectives / learning outcomes</FieldLabel>
+                                                                <Textarea
+                                                                    id={`lesson-${index}-objectives`}
+                                                                    placeholder="List specific skills or knowledge students should demonstrate after this lesson."
+                                                                    rows={3}
+                                                                    value={lesson.objectives}
+                                                                    onChange={(event) =>
+                                                                        handleLessonFieldChange(lesson.id, "objectives", event.target.value)
+                                                                    }
+                                                                />
+                                                            </Field>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-outcomes`}>Outcomes / evidence</FieldLabel>
+                                                                <Textarea
+                                                                    id={`lesson-${index}-outcomes`}
+                                                                    placeholder="Capture observable outcomes or evidence collected in this lesson."
+                                                                    rows={3}
+                                                                    value={lesson.outcomes}
+                                                                    onChange={(event) =>
+                                                                        handleLessonFieldChange(lesson.id, "outcomes", event.target.value)
+                                                                    }
+                                                                />
+                                                            </Field>
+                                                        </FieldGroup>
+                                                    </div>
+                                                    <div className="flex flex-col gap-4">
+                                                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                            Content
+                                                        </span>
+                                                        <FieldGroup>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-body`}>Body / content blocks</FieldLabel>
+                                                                <RichTextEditor
+                                                                    id={`lesson-${index}-body`}
+                                                                    value={lesson.body}
+                                                                    onChange={(value) => handleLessonFieldChange(lesson.id, "body", value)}
+                                                                    placeholder="Add the core delivery content, including text, slide notes, scripts, or embed instructions."
+                                                                    minHeight={280}
+                                                                />
+                                                            </Field>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-instructions`}>Facilitation instructions</FieldLabel>
+                                                                <RichTextEditor
+                                                                    id={`lesson-${index}-instructions`}
+                                                                    value={lesson.instructions}
+                                                                    onChange={(value) => handleLessonFieldChange(lesson.id, "instructions", value)}
+                                                                    placeholder="Capture reminders for facilitators: tone-setting, materials prep, or cross-lesson scaffolds."
+                                                                    minHeight={220}
+                                                                />
+                                                            </Field>
+                                                            <Field>
+                                                                <FieldLabel htmlFor={`lesson-${index}-media`}>Media assets</FieldLabel>
+                                                                <div
+                                                                    className={cn(
+                                                                        "border border-dashed border-input rounded-lg p-6 text-center transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer",
+                                                                        isDragging ? "border-primary bg-primary/5 text-primary" : "hover:border-primary/80 hover:bg-muted/50 text-muted-foreground",
+                                                                    )}
+                                                                    onDragEnter={(event) => handleLessonDragOver(lesson.id, event)}
+                                                                    onDragOver={(event) => handleLessonDragOver(lesson.id, event)}
+                                                                    onDragLeave={(event) => handleLessonDragLeave(lesson.id, event)}
+                                                                    onDrop={(event) => handleMediaDrop(lesson.id, event)}
+                                                                    onClick={() => lessonInputRefs.current.get(lesson.id)?.click()}
+                                                                    role="button"
+                                                                    tabIndex={0}
+                                                                    onKeyDown={(event) => {
+                                                                        if (event.key === "Enter" || event.key === " ") {
+                                                                            event.preventDefault();
+                                                                            lessonInputRefs.current.get(lesson.id)?.click();
+                                                                        }
+                                                                    }}
+                                                                    aria-label="Upload lesson media"
+                                                                >
+                                                                    <UploadCloud
                                                                         className={cn(
-                                                                            "border border-dashed border-input rounded-lg p-6 text-center transition-colors flex flex-col items-center justify-center gap-3 cursor-pointer",
-                                                                            isDragging ? "border-primary bg-primary/5 text-primary" : "hover:border-primary/80 hover:bg-muted/50 text-muted-foreground",
+                                                                            "size-10 text-muted-foreground transition-colors",
+                                                                            isDragging && "text-primary",
                                                                         )}
-                                                                        onDragEnter={(event) => handleLessonDragOver(lesson.id, event)}
-                                                                        onDragOver={(event) => handleLessonDragOver(lesson.id, event)}
-                                                                        onDragLeave={(event) => handleLessonDragLeave(lesson.id, event)}
-                                                                        onDrop={(event) => handleMediaDrop(lesson.id, event)}
-                                                                        onClick={() => lessonInputRefs.current.get(lesson.id)?.click()}
-                                                                        role="button"
-                                                                        tabIndex={0}
-                                                                        onKeyDown={(event) => {
-                                                                            if (event.key === "Enter" || event.key === " ") {
-                                                                                event.preventDefault();
-                                                                                lessonInputRefs.current.get(lesson.id)?.click();
+                                                                    />
+                                                                    <div className="text-sm font-medium text-foreground">
+                                                                        Drag &amp; drop files here
+                                                                        <span className="text-primary block">
+                                                                            or browse from your computer
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground max-w-xs">
+                                                                        Upload images, audio, video, or documents (multiple files supported)
+                                                                    </p>
+                                                                    <input
+                                                                        ref={(element) => {
+                                                                            if (element) {
+                                                                                lessonInputRefs.current.set(lesson.id, element);
+                                                                            } else {
+                                                                                lessonInputRefs.current.delete(lesson.id);
                                                                             }
                                                                         }}
-                                                                        aria-label="Upload lesson media"
-                                                                    >
-                                                                        <UploadCloud
-                                                                            className={cn(
-                                                                                "size-10 text-muted-foreground transition-colors",
-                                                                                isDragging && "text-primary",
-                                                                            )}
-                                                                        />
-                                                                        <div className="text-sm font-medium text-foreground">
-                                                                            Drag &amp; drop files here
-                                                                            <span className="text-primary block">
-                                                                                or browse from your computer
-                                                                            </span>
-                                                                        </div>
-                                                                        <p className="text-xs text-muted-foreground max-w-xs">
-                                                                            Upload images, audio, video, or documents (multiple files supported)
-                                                                        </p>
-                                                                        <input
-                                                                            ref={(element) => {
-                                                                                if (element) {
-                                                                                    lessonInputRefs.current.set(lesson.id, element);
-                                                                                } else {
-                                                                                    lessonInputRefs.current.delete(lesson.id);
-                                                                                }
-                                                                            }}
-                                                                            id={`lesson-${index}-media`}
-                                                                            type="file"
-                                                                            className="hidden"
-                                                                            multiple
-                                                                            onChange={(event) => handleMediaInputChange(lesson.id, event)}
-                                                                        />
+                                                                        id={`lesson-${index}-media`}
+                                                                        type="file"
+                                                                        className="hidden"
+                                                                        multiple
+                                                                        onChange={(event) => handleMediaInputChange(lesson.id, event)}
+                                                                    />
+                                                                </div>
+                                                                {lesson.media.length > 0 && (
+                                                                    <div className="mt-4 flex flex-col gap-2">
+                                                                        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                                                            Attachments
+                                                                        </span>
+                                                                        <ul className="flex flex-col gap-2">
+                                                                            {lesson.media.map((asset) => (
+                                                                                <li
+                                                                                    key={asset.id}
+                                                                                    className="bg-background border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-3"
+                                                                                >
+                                                                                    <div className="flex items-center gap-3 text-left">
+                                                                                        <div className="size-12 overflow-hidden rounded-md border border-border flex items-center justify-center bg-muted">
+                                                                                            {asset.type.startsWith("image/") ? (
+                                                                                                <img
+                                                                                                    src={asset.url}
+                                                                                                    alt={asset.name}
+                                                                                                    className="size-full object-cover"
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <FileText className="size-5 text-primary"/>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        <div>
+                                                                                            <p className="text-sm font-medium text-foreground break-all">
+                                                                                                {asset.name}
+                                                                                            </p>
+                                                                                            <p className="text-xs text-muted-foreground">
+                                                                                                {formatFileSize(asset.size)}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="sm"
+                                                                                            type="button"
+                                                                                            asChild
+                                                                                        >
+                                                                                            <a
+                                                                                                href={asset.url}
+                                                                                                target="_blank"
+                                                                                                rel="noopener noreferrer"
+                                                                                            >
+                                                                                                Preview
+                                                                                            </a>
+                                                                                        </Button>
+                                                                                        <Button
+                                                                                            variant="ghost"
+                                                                                            size="icon"
+                                                                                            type="button"
+                                                                                            aria-label={`Remove ${asset.name}`}
+                                                                                            onClick={(event) => {
+                                                                                                event.stopPropagation();
+                                                                                                removeMediaAsset(lesson.id, asset.id);
+                                                                                            }}
+                                                                                        >
+                                                                                            <X className="size-4"/>
+                                                                                        </Button>
+                                                                                    </div>
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
                                                                     </div>
-                                                                    {lesson.media.length > 0 && (
-                                                                        <div className="mt-4 flex flex-col gap-2">
-                                                                            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                                                                Attachments
-                                                                            </span>
-                                                                            <ul className="flex flex-col gap-2">
-                                                                                {lesson.media.map((asset) => (
-                                                                                    <li
-                                                                                        key={asset.id}
-                                                                                        className="bg-background border border-border rounded-lg px-3 py-2 flex items-center justify-between gap-3"
-                                                                                    >
-                                                                                        <div className="flex items-center gap-3 text-left">
-                                                                                            <div className="size-12 overflow-hidden rounded-md border border-border flex items-center justify-center bg-muted">
-                                                                                                {asset.type.startsWith("image/") ? (
-                                                                                                    <img
-                                                                                                        src={asset.url}
-                                                                                                        alt={asset.name}
-                                                                                                        className="size-full object-cover"
-                                                                                                    />
-                                                                                                ) : (
-                                                                                                    <FileText className="size-5 text-primary"/>
-                                                                                                )}
-                                                                                            </div>
-                                                                                            <div>
-                                                                                                <p className="text-sm font-medium text-foreground break-all">
-                                                                                                    {asset.name}
-                                                                                                </p>
-                                                                                                <p className="text-xs text-muted-foreground">
-                                                                                                    {formatFileSize(asset.size)}
-                                                                                                </p>
-                                                                                            </div>
-                                                                                        </div>
-                                                                                        <div className="flex items-center gap-2">
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="sm"
-                                                                                                type="button"
-                                                                                                asChild
-                                                                                            >
-                                                                                                <a
-                                                                                                    href={asset.url}
-                                                                                                    target="_blank"
-                                                                                                    rel="noopener noreferrer"
-                                                                                                >
-                                                                                                    Preview
-                                                                                                </a>
-                                                                                            </Button>
-                                                                                            <Button
-                                                                                                variant="ghost"
-                                                                                                size="icon"
-                                                                                                type="button"
-                                                                                                aria-label={`Remove ${asset.name}`}
-                                                                                                onClick={(event) => {
-                                                                                                    event.stopPropagation();
-                                                                                                    removeMediaAsset(lesson.id, asset.id);
-                                                                                                }}
-                                                                                            >
-                                                                                                <X className="size-4"/>
-                                                                                            </Button>
-                                                                                        </div>
-                                                                                    </li>
-                                                                                ))}
-                                                                            </ul>
-                                                                        </div>
-                                                                    )}
-                                                                </Field>
-                                                    </FieldGroup>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </TabsContent>
-                                        );
-                                    })}
-                                </Tabs>
+                                                                )}
+                                                            </Field>
+                                                        </FieldGroup>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </TabsContent>
+                                    );
+                                })}
+                            </Tabs>
                         </div>
                         <div className="flex justify-end">
                             <Button size="lg" type="submit" disabled={isSaving}>
@@ -829,7 +910,7 @@ export default function ModuleCreate() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
-                                <FieldGroup>
+                            <FieldGroup>
                                 <Field>
                                     <FieldLabel htmlFor="module-author-name">Author / instructor name</FieldLabel>
                                     <Input
@@ -919,35 +1000,10 @@ export default function ModuleCreate() {
                             </FieldGroup>
                         </CardContent>
                     </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Publishing Checklist</CardTitle>
-                            <CardDescription>
-                                Ensure the module overview feels ready before sharing with the wider team.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-4 text-sm text-muted-foreground">
-                            <p>- Confirm objectives align with the student&apos;s learning path.</p>
-                            <p>- Attach supporting media in the materials section.</p>
-                            <p>- Double-check assessment items and completion rules.</p>
-                            <p>- Set the publication status once everything feels final.</p>
-                        </CardContent>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Need Inspiration?</CardTitle>
-                            <CardDescription>
-                                Link to past modules or templates that can help you move faster.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
-                            <p>- Sensory Stories Starter Kit</p>
-                            <p>- Communication Circles Weekly Plan</p>
-                            <p>- Collaborative Projects Playbook</p>
-                        </CardContent>
-                    </Card>
                 </div>
             </div>
         </>
-    )
-}
+    );
+};
+
+export default ModuleEdit;

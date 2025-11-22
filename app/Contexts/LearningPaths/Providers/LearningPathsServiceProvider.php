@@ -14,5 +14,6 @@ class LearningPathsServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->loadMigrationsFrom(app_path('Contexts/LearningPaths/Database/Migrations'));
+        $this->loadRoutesFrom(base_path('routes/learning_paths.php'));
     }
 }

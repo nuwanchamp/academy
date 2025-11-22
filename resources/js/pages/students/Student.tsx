@@ -1,5 +1,3 @@
-import StudentEdit from "./StudentEdit";
+import StudentProfilePage from "@/features/students/pages/StudentProfilePage.tsx";
 
-export default function Student() {
-    return <StudentEdit readOnly />;
-}
+export default StudentProfilePage;

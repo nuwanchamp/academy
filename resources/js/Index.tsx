@@ -23,6 +23,7 @@ import Student from "@/pages/students/Student.tsx";
 import StudentEdit from "@/pages/students/StudentEdit.tsx";
 import ModuleCreate from "@/pages/ModuleCreate.tsx";
 import ModuleView from "@/pages/ModuleView.tsx";
+import ModuleEdit from "@/pages/ModuleEdit.tsx";
 import ProgressTrackingReport from "@/pages/reports/ProgressTracking.tsx";
 import StudentProgressReport from "@/pages/reports/StudentProgress.tsx";
 import LessonView from "@/pages/LessonView.tsx";
@@ -42,6 +43,7 @@ const Index: React.FC = () => {
                     <Route path="/modules" element={<Modules />} />
                     <Route path="/modules/create" element={<ModuleCreate />} />
                     <Route path="/modules/:id" element={<ModuleView />} />
+                    <Route path="/modules/:id/edit" element={<ModuleEdit />} />
                     <Route path="/paths" element={<LearningPaths />} />
                     <Route path="/paths/create" element={<PathCreate />} />
                     <Route path="/paths/:id" element={<PathView />} />

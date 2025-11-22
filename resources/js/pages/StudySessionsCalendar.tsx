@@ -61,6 +61,11 @@ const startOfWeek = (date: Date) => {
 
 const startOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1);
 const endOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0);
+const startOfDay = (date: Date) => {
+    const d = new Date(date);
+    d.setHours(0, 0, 0, 0);
+    return d;
+};
 
 export default function StudySessionsCalendar() {
     const {date: dateParam} = useParams<{date?: string}>();
@@ -156,6 +161,7 @@ export default function StudySessionsCalendar() {
         () => monthPlan.reduce<Array<{date: Date; key: string; inMonth: boolean; events: DayOccurrence[]}>>((all, week) => all.concat(week), []),
         [monthPlan]
     );
+    const todayKey = toDateKey(new Date());
 
     const deriveTimeline = (events: DayOccurrence[], fallbackStart = 8 * 60, fallbackEnd = 18 * 60) => {
         const paddingMinutes = 60; // 1 hour breathing room
@@ -277,6 +283,29 @@ export default function StudySessionsCalendar() {
                                                 style={{top: `${((hour * 60 - dayTimeline.startMinutes) / dayTimeline.totalMinutes) * 100}%`}}
                                             />
                                         ))}
+                                        {selectedDate && (() => {
+                                            const now = new Date();
+                                            const isToday = now.toDateString() === selectedDate.toDateString();
+                                            if (!isToday) return null;
+                                            const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                                            const shadedPct = clamp(0, ((nowMinutes - dayTimeline.startMinutes) / dayTimeline.totalMinutes) * 100, 100);
+                                            return (
+                                                <>
+                                                    <div
+                                                        className="absolute inset-x-0 top-0 bg-muted/60"
+                                                        style={{height: `${shadedPct}%`}}
+                                                    />
+                                                    <div
+                                                        className="absolute inset-x-0 border-t border-primary/60"
+                                                        style={{top: `${shadedPct}%`}}
+                                                    >
+                                                        <span className="absolute left-2 -translate-y-1/2 text-[11px] text-primary font-semibold bg-card px-1 rounded-sm">
+                                                            Now
+                                                        </span>
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
                                         {dayPlan.map((occurrence, idx) => {
                                             const start = clamp(0, toMinutes(occurrence.starts_at) - dayTimeline.startMinutes, dayTimeline.totalMinutes);
                                             const end = clamp(0, toMinutes(occurrence.ends_at) - dayTimeline.startMinutes, dayTimeline.totalMinutes);
@@ -366,43 +395,71 @@ export default function StudySessionsCalendar() {
                                             />
                                         ))}
                                         <div className="relative h-full grid grid-cols-7 border-l">
-                                            {weekPlan.map(({date, key, events}) => (
-                                                <div key={key} className="relative border-r">
-                                                    <div className="absolute right-1 top-1 text-[10px] text-muted-foreground">{date.getDate()}</div>
-                                                    {events.length === 0 && (
-                                                        <div className="text-[10px] text-muted-foreground absolute left-1 top-6">—</div>
-                                                    )}
-                                                    {events.map((occurrence, idx) => {
-                                                        const start = clamp(0, toMinutes(occurrence.starts_at) - weekTimeline.startMinutes, weekTimeline.totalMinutes);
-                                                        const end = clamp(0, toMinutes(occurrence.ends_at) - weekTimeline.startMinutes, weekTimeline.totalMinutes);
-                                                        const minBlockPct = (48 / weekTimeline.totalMinutes) * 100;
-                                                        const height = Math.max(end - start, 24);
-                                                        const top = (start / weekTimeline.totalMinutes) * 100;
-                                                        const blockHeight = Math.max((height / weekTimeline.totalMinutes) * 100, minBlockPct);
-                                                        const isSelected = selectedOccurrence?.id === occurrence.id;
-                                                        const color = eventBadges[(idx + date.getDate()) % eventBadges.length];
+                                            {weekPlan.map(({date, key, events}) => {
+                                                const isPastDay = startOfDay(date) < startOfDay(new Date());
+                                                return (
+                                                    <div key={key} className={cn("relative border-r", isPastDay && "opacity-60 pointer-events-none")}>
+                                                        <div className="absolute right-1 top-1 text-[10px] text-muted-foreground">{date.getDate()}</div>
+                                                        {events.length === 0 && (
+                                                            <div className="text-[10px] text-muted-foreground absolute left-1 top-6">—</div>
+                                                        )}
+                                                        {key === todayKey && (
+                                                            (() => {
+                                                                const now = new Date();
+                                                                if (now.toDateString() !== date.toDateString()) return null;
+                                                                const nowMinutes = now.getHours() * 60 + now.getMinutes();
+                                                                const shadedPct = clamp(0, ((nowMinutes - weekTimeline.startMinutes) / weekTimeline.totalMinutes) * 100, 100);
+                                                                return (
+                                                                    <>
+                                                                        <div
+                                                                            className="absolute inset-x-0 top-0 bg-muted/60"
+                                                                            style={{height: `${shadedPct}%`}}
+                                                                        />
+                                                                        <div
+                                                                            className="absolute inset-x-0 border-t border-primary/60"
+                                                                            style={{top: `${shadedPct}%`}}
+                                                                        >
+                                                                            <span className="absolute left-1 -translate-y-1/2 text-[11px] text-primary font-semibold bg-card px-1 rounded-sm">
+                                                                                Now
+                                                                            </span>
+                                                                        </div>
+                                                                    </>
+                                                                );
+                                                            })()
+                                                        )}
+                                                        {events.map((occurrence, idx) => {
+                                                            const start = clamp(0, toMinutes(occurrence.starts_at) - weekTimeline.startMinutes, weekTimeline.totalMinutes);
+                                                            const end = clamp(0, toMinutes(occurrence.ends_at) - weekTimeline.startMinutes, weekTimeline.totalMinutes);
+                                                            const minBlockPct = (48 / weekTimeline.totalMinutes) * 100;
+                                                            const height = Math.max(end - start, 24);
+                                                            const top = (start / weekTimeline.totalMinutes) * 100;
+                                                            const blockHeight = Math.max((height / weekTimeline.totalMinutes) * 100, minBlockPct);
+                                                            const isSelected = selectedOccurrence?.id === occurrence.id;
+                                                            const color = eventBadges[(idx + date.getDate()) % eventBadges.length];
 
-                                                        return (
-                                                            <button
-                                                                key={occurrence.id}
-                                                                className={cn(
-                                                                    "absolute left-1 right-1 rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2",
-                                                                    color,
-                                                                    isSelected ? "ring-2 ring-primary/60 border-primary" : "border-border"
-                                                                )}
-                                                                style={{top: `${top}%`, height: `${blockHeight}%`}}
-                                                                onClick={() => setSelectedOccurrence(occurrence)}
-                                                            >
-                                                                <div className="font-semibold truncate text-foreground/90">{occurrence.session.title}</div>
-                                                                <div className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                                                    <CalendarClock className="h-3 w-3" />
-                                                                    <span className="truncate">{toTimeRange(occurrence.starts_at, occurrence.ends_at)}</span>
-                                                                </div>
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ))}
+                                                            return (
+                                                                <button
+                                                                    key={occurrence.id}
+                                                                    className={cn(
+                                                                        "absolute left-1 right-1 rounded-md border px-2 py-1 text-left text-xs shadow-sm transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2",
+                                                                        color,
+                                                                        isSelected ? "ring-2 ring-primary/60 border-primary" : "border-border"
+                                                                    )}
+                                                                    style={{top: `${top}%`, height: `${blockHeight}%`}}
+                                                                    onClick={() => setSelectedOccurrence(occurrence)}
+                                                                    disabled={isPastDay}
+                                                                >
+                                                                    <div className="font-semibold truncate text-foreground/90">{occurrence.session.title}</div>
+                                                                    <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                                        <CalendarClock className="h-3 w-3" />
+                                                                        <span className="truncate">{toTimeRange(occurrence.starts_at, occurrence.ends_at)}</span>
+                                                                    </div>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                     <div className="relative border-l bg-card/40">
@@ -429,12 +486,14 @@ export default function StudySessionsCalendar() {
                                 <div className="grid grid-cols-7 gap-2">
                                     {flatMonthDays.map((day) => {
                                         const color = eventBadges[(day.date.getDate() + day.date.getMonth()) % eventBadges.length];
+                                        const isPastDay = startOfDay(day.date) < startOfDay(new Date());
                                         return (
                                             <div
                                                 key={`${day.key}-${day.date.getDate()}`}
                                                 className={cn(
-                                                    "min-h-32 rounded-lg border bg-card/70 p-2 flex flex-col gap-2 transition",
-                                                    !day.inMonth && "opacity-60"
+                                                    "min-h-32 rounded-lg border bg-card/70 p-2 flex flex-col gap-2 transition relative",
+                                                    (!day.inMonth || isPastDay) && "opacity-60",
+                                                    day.key === todayKey && "ring-2 ring-primary/30 border-primary/50"
                                                 )}
                                             >
                                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -450,6 +509,7 @@ export default function StudySessionsCalendar() {
                                                                 color
                                                             )}
                                                             onClick={() => setSelectedOccurrence(occurrence)}
+                                                            disabled={isPastDay}
                                                         >
                                                             <div className="font-semibold text-foreground/90 truncate">{occurrence.session.title}</div>
                                                             <div className="text-[11px] text-muted-foreground flex items-center gap-1">
@@ -462,6 +522,9 @@ export default function StudySessionsCalendar() {
                                                         <span className="text-[10px] text-muted-foreground">+{day.events.length - 2} more</span>
                                                     )}
                                                 </div>
+                                                {day.key === todayKey && (
+                                                    <span className="absolute top-1 right-2 text-[10px] font-semibold text-primary">Today</span>
+                                                )}
                                             </div>
                                         );
                                     })}

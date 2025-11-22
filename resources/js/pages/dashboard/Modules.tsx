@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useState} from "react";
+import {useMemo, useState} from "react";
 import {Link} from "react-router-dom";
 import {Filter, Search} from "lucide-react";
 import PageHeading from "@/components/ui/PageHeading.tsx";
@@ -8,6 +8,7 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
+    CardFooter,
 } from "@/components/ui/card.tsx";
 import {Input} from "@/components/ui/input.tsx";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
@@ -27,204 +28,76 @@ import {
     PaginationPrevious,
 } from "@/components/ui/pagination.tsx";
 import {cn} from "@/lib/utils.ts";
+import {useModules} from "@/features/modules/hooks/useModules.ts";
 
-type ModuleStatus = "Published" | "Draft" | "Archived";
-
-interface Module {
-    id: string;
-    code: string;
-    title: string;
-    summary: string;
-    subject: string;
-    gradeBand: string;
-    duration: string;
-    status: ModuleStatus;
-    lessons: number;
-    updated: string;
-    tags: string[];
-}
-
-const modules: Module[] = [
-    {
-        id: "mod-sense-001",
-        code: "MOD-EXPLR-001",
-        title: "Sensory Exploration Foundations",
-        summary: "Build shared language around the five senses and introduce calming techniques learners can practise independently.",
-        subject: "Wellness",
-        gradeBand: "Grades K – 2",
-        duration: "2 weeks",
-        status: "Published",
-        lessons: 8,
-        updated: "Mar 14, 2024",
-        tags: ["sensory", "mindfulness", "routines"],
-    },
-    {
-        id: "mod-comm-004",
-        code: "MOD-COMM-004",
-        title: "Everyday Communication Circles",
-        summary: "Storytelling prompts and circle time rituals that strengthen expressive language and listening stamina.",
-        subject: "Literacy",
-        gradeBand: "Grades 3 – 5",
-        duration: "3 weeks",
-        status: "Draft",
-        lessons: 12,
-        updated: "Mar 08, 2024",
-        tags: ["discussion", "community building", "language"],
-    },
-    {
-        id: "mod-move-002",
-        code: "MOD-MOVE-002",
-        title: "Movement & Mindfulness",
-        summary: "Daily movement flows paired with reflective prompts to help learners notice changes in energy and mood.",
-        subject: "Wellness",
-        gradeBand: "Grades 3 – 5",
-        duration: "4 weeks",
-        status: "Published",
-        lessons: 16,
-        updated: "Mar 02, 2024",
-        tags: ["SEL", "movement", "reflection"],
-    },
-    {
-        id: "mod-stem-003",
-        code: "MOD-STEM-003",
-        title: "Curiosity Makers: Simple Machines",
-        summary: "Design studio stations where learners prototype simple machines and document their iterations.",
-        subject: "Science",
-        gradeBand: "Grades 4 – 6",
-        duration: "3 weeks",
-        status: "Published",
-        lessons: 10,
-        updated: "Feb 26, 2024",
-        tags: ["STEM", "project-based", "design"],
-    },
-    {
-        id: "mod-literacy-006",
-        code: "MOD-LIT-006",
-        title: "Author Study Lab",
-        summary: "Dive into author craft moves with mentor texts, annotation clubs, and publishing celebrations.",
-        subject: "Literacy",
-        gradeBand: "Grades 6 – 8",
-        duration: "5 weeks",
-        status: "Draft",
-        lessons: 18,
-        updated: "Feb 21, 2024",
-        tags: ["reading", "writing", "workshop"],
-    },
-    {
-        id: "mod-math-210",
-        code: "MOD-MATH-210",
-        title: "Proportional Reasoning Playlist",
-        summary: "Choice-driven playlists and mini-seminars that prepare learners for algebra readiness.",
-        subject: "Mathematics",
-        gradeBand: "Grades 7 – 8",
-        duration: "4 weeks",
-        status: "Published",
-        lessons: 14,
-        updated: "Feb 12, 2024",
-        tags: ["math workshop", "playlists", "algebra"],
-    },
-    {
-        id: "mod-archive-101",
-        code: "MOD-ARTS-101",
-        title: "Community Murals Project",
-        summary: "Collaborative mural project blending art techniques with local storytelling and public showcases.",
-        subject: "Arts",
-        gradeBand: "Grades 5 – 8",
-        duration: "6 weeks",
-        status: "Archived",
-        lessons: 20,
-        updated: "Jan 30, 2024",
-        tags: ["arts integration", "community", "project-based"],
-    },
-    {
-        id: "mod-sci-042",
-        code: "MOD-SCI-042",
-        title: "Weather Inquiry Lab",
-        summary: "Field observations, data collection, and storytelling to make sense of weather patterns.",
-        subject: "Science",
-        gradeBand: "Grades 3 – 5",
-        duration: "3 weeks",
-        status: "Published",
-        lessons: 11,
-        updated: "Jan 18, 2024",
-        tags: ["inquiry", "data literacy", "science"],
-    },
-    {
-        id: "mod-literacy-031",
-        code: "MOD-LIT-031",
-        title: "Podcasting for Perspective",
-        summary: "Learners plan, script, and produce podcasts focused on local change makers.",
-        subject: "Humanities",
-        gradeBand: "Grades 8 – 10",
-        duration: "4 weeks",
-        status: "Draft",
-        lessons: 15,
-        updated: "Jan 11, 2024",
-        tags: ["media literacy", "voice", "project"],
-    },
-];
-
-const subjectOptions = ["All subjects", "Wellness", "Literacy", "Science", "Mathematics", "Arts", "Humanities"];
-const gradeOptions = ["All grade bands", "Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
-const statusOptions: Array<"All statuses" | ModuleStatus> = ["All statuses", "Published", "Draft", "Archived"];
+type ModuleStatus = "published" | "draft" | "archived";
 
 const statusTone: Record<ModuleStatus, "default" | "secondary" | "outline"> = {
-    Published: "default",
-    Draft: "secondary",
-    Archived: "outline",
+    published: "default",
+    draft: "secondary",
+    archived: "outline",
 };
 
 export default function Modules() {
-    const [search, setSearch] = useState("");
-    const [subject, setSubject] = useState(subjectOptions[0]);
-    const [gradeBand, setGradeBand] = useState(gradeOptions[0]);
-    const [status, setStatus] = useState<"All statuses" | ModuleStatus>("All statuses");
-    const [page, setPage] = useState(1);
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const pageSize = 6;
+    const {
+        modules,
+        search,
+        setSearch,
+        subject,
+        setSubject,
+        subjectOptions,
+        gradeBand,
+        setGradeBand,
+        gradeBandOptions,
+        status,
+        setStatus,
+        statusOptions,
+        page,
+        setPage,
+        meta,
+        isLoading,
+        error,
+        resetFilters,
+    } = useModules();
 
-    useEffect(() => {
-        setPage(1);
-    }, [search, subject, gradeBand, status]);
+    const paginatedModules = useMemo(() => modules, [modules]);
 
-    const filteredModules = useMemo(() => {
-        return modules.filter((module) => {
-            const matchesSearch = search.trim().length === 0
-                || [module.title, module.summary, module.code, ...module.tags].some((value) =>
-                    value.toLowerCase().includes(search.toLowerCase()),
-                );
-            const matchesSubject = subject === subjectOptions[0] || module.subject === subject;
-            const matchesGradeBand = gradeBand === gradeOptions[0] || module.gradeBand === gradeBand;
-            const matchesStatus = status === "All statuses" || module.status === status;
-            return matchesSearch && matchesSubject && matchesGradeBand && matchesStatus;
-        });
-    }, [search, subject, gradeBand, status]);
-
-    const totalPages = Math.max(1, Math.ceil(filteredModules.length / pageSize));
-    const currentPage = Math.min(page, totalPages);
-
-    const paginatedModules = useMemo(() => {
-        const start = (currentPage - 1) * pageSize;
-        return filteredModules.slice(start, start + pageSize);
-    }, [filteredModules, currentPage]);
-
-    const handleChangePage = (nextPage: number) => {
-        if (nextPage < 1 || nextPage > totalPages) {
+    const handlePageChange = (nextPage: number) => {
+        if (!meta?.last_page) {
+            return;
+        }
+        if (nextPage < 1 || nextPage > meta.last_page) {
             return;
         }
         setPage(nextPage);
     };
 
-    const activeFilters = [
-        subject !== subjectOptions[0] && {label: subject, onRemove: () => setSubject(subjectOptions[0])},
-        gradeBand !== gradeOptions[0] && {label: gradeBand, onRemove: () => setGradeBand(gradeOptions[0])},
-        status !== "All statuses" && {label: status, onRemove: () => setStatus("All statuses")},
-    ].filter(Boolean) as Array<{label: string; onRemove: () => void}>;
+    const displayStatus = (value?: string | null): ModuleStatus => {
+        const normalized = (value ?? "draft").toLowerCase();
+        if (normalized === "published" || normalized === "archived") {
+            return normalized;
+        }
+        return "draft";
+    };
+
+    const updatedLabel = (value?: string | null) => {
+        if (!value) {
+            return "—";
+        }
+        const parsed = new Date(value);
+        if (Number.isNaN(parsed.getTime())) {
+            return value;
+        }
+        return new Intl.DateTimeFormat(undefined, {month: "short", day: "numeric", year: "numeric"}).format(parsed);
+    };
+
+    const emptyState = !isLoading && !error && paginatedModules.length === 0;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 text-primary">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-                <PageHeading lead="Plan" title="Modules Library"/>
+                <PageHeading lead="Curriculum" title="Module Library" />
                 <Button asChild size="lg">
                     <Link to="/modules/create">Create module</Link>
                 </Button>
@@ -233,9 +106,9 @@ export default function Modules() {
             <Card>
                 <CardHeader className="gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <CardTitle>Curated modules to jumpstart planning</CardTitle>
+                        <CardTitle>All modules</CardTitle>
                         <CardDescription>
-                            Search, filter, and assign modular learning experiences tailored to your community.
+                            Browse modules by subject, grade band, and publication status.
                         </CardDescription>
                     </div>
                 </CardHeader>
@@ -243,41 +116,31 @@ export default function Modules() {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex w-full flex-col gap-3 md:flex-row md:items-center">
                             <div className="relative flex-1">
-                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"/>
+                                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                                 <Input
                                     value={search}
                                     onChange={(event) => setSearch(event.target.value)}
-                                    placeholder="Search by title, code, or tag…"
+                                    placeholder="Search by module…"
                                     className="pl-9"
                                 />
                             </div>
-                            <Button
-                                variant="ghost"
-                                onClick={() => {
-                                    setSearch("");
-                                    setSubject(subjectOptions[0]);
-                                    setGradeBand(gradeOptions[0]);
-                                    setStatus("All statuses");
-                                    setFiltersOpen(false);
-                                }}
-                                className="md:w-auto"
-                            >
+                            <Button variant="ghost" onClick={resetFilters}>
                                 Reset
                             </Button>
                         </div>
                         <Popover open={filtersOpen} onOpenChange={setFiltersOpen}>
                             <PopoverTrigger asChild>
                                 <Button variant="outline" className="w-full justify-center gap-2 lg:w-auto">
-                                    <Filter className="size-4"/>
+                                    <Filter className="size-4" />
                                     Filters
                                 </Button>
                             </PopoverTrigger>
-                            <PopoverContent align="end" className="w-72 space-y-4 p-4">
+                            <PopoverContent align="end" className="w-80 space-y-4 p-4">
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-foreground">Subject</p>
-                                    <Select value={subject} onValueChange={(value) => setSubject(value)}>
+                                    <Select value={subject} onValueChange={setSubject}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Subject"/>
+                                            <SelectValue placeholder="Subject" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {subjectOptions.map((option) => (
@@ -290,12 +153,12 @@ export default function Modules() {
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-foreground">Grade band</p>
-                                    <Select value={gradeBand} onValueChange={(value) => setGradeBand(value)}>
+                                    <Select value={gradeBand} onValueChange={setGradeBand}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Grade band"/>
+                                            <SelectValue placeholder="Grade band" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {gradeOptions.map((option) => (
+                                            {gradeBandOptions.map((option) => (
                                                 <SelectItem key={option} value={option}>
                                                     {option}
                                                 </SelectItem>
@@ -305,9 +168,9 @@ export default function Modules() {
                                 </div>
                                 <div className="space-y-2">
                                     <p className="text-sm font-medium text-foreground">Status</p>
-                                    <Select value={status} onValueChange={(value: "All statuses" | ModuleStatus) => setStatus(value)}>
+                                    <Select value={status} onValueChange={(value) => setStatus(value)}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Status"/>
+                                            <SelectValue placeholder="Status" />
                                         </SelectTrigger>
                                         <SelectContent>
                                             {statusOptions.map((option) => (
@@ -319,147 +182,127 @@ export default function Modules() {
                                     </Select>
                                 </div>
                                 <div className="flex justify-end">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                            setSubject(subjectOptions[0]);
-                                            setGradeBand(gradeOptions[0]);
-                                            setStatus("All statuses");
-                                            setFiltersOpen(false);
-                                        }}
-                                    >
+                                    <Button variant="ghost" size="sm" onClick={resetFilters}>
                                         Clear filters
                                     </Button>
                                 </div>
                             </PopoverContent>
                         </Popover>
                     </div>
-
-                    {activeFilters.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 text-sm">
-                            <span className="text-muted-foreground">Active filters:</span>
-                            {activeFilters.map((filter) => (
-                                <Badge key={filter.label} variant="secondary" className="gap-2">
-                                    {filter.label}
-                                    <button
-                                        type="button"
-                                        onClick={filter.onRemove}
-                                        className="text-muted-foreground transition hover:text-primary"
-                                        aria-label={`Remove ${filter.label} filter`}
-                                    >
-                                        ×
-                                    </button>
-                                </Badge>
-                            ))}
-                        </div>
-                    )}
                 </CardContent>
             </Card>
-
-            <div className="space-y-6">
-                {paginatedModules.length > 0 ? (
-                    <>
-                        <div className="grid gap-5 lg:grid-cols-2 xl:grid-cols-3">
-                            {paginatedModules.map((module) => (
-                                <Card key={module.id} className="relative overflow-hidden border border-border/60 bg-background shadow-sm transition hover:-translate-y-1 hover:shadow-md">
-                                    <CardContent className="flex h-full flex-col gap-5 p-6">
-                                        <div className="flex flex-wrap items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                                            <Badge variant="outline">{module.code}</Badge>
-                                            <Badge variant="outline">{module.subject}</Badge>
-                                            <Badge variant="outline">{module.gradeBand}</Badge>
-                                            <Badge variant={statusTone[module.status]}>{module.status}</Badge>
-                                        </div>
-                                        <div className="space-y-2">
-                                            <CardTitle className="text-xl text-foreground">{module.title}</CardTitle>
-                                            <CardDescription className="text-sm leading-relaxed text-muted-foreground">
-                                                {module.summary}
-                                            </CardDescription>
-                                        </div>
-                                        <div className="flex flex-wrap gap-2">
-                                            {module.tags.map((tag) => (
-                                                <Badge key={tag} variant="secondary" className="uppercase tracking-wide">
-                                                    {tag}
-                                                </Badge>
-                                            ))}
-                                        </div>
-                                        <div className="mt-auto flex flex-col gap-4">
-                                            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
-                                                <span>{module.duration}</span>
-                                                <span className="h-1 w-1 rounded-full bg-muted-foreground"/>
-                                                <span>{module.lessons} lessons</span>
-                                                <span className="h-1 w-1 rounded-full bg-muted-foreground"/>
-                                                <span>Updated {module.updated}</span>
-                                            </div>
-                                            <div className="flex flex-wrap gap-3">
-                                                <Button asChild size="sm">
-                                                    <Link to={`/modules/${module.id}`}>View module</Link>
-                                                </Button>
-                                                <Button variant="outline" size="sm" disabled={module.status !== "Published"}>
-                                                    Assign
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
-
-                        <Pagination>
-                            <PaginationContent>
-                                <PaginationItem>
-                                    <PaginationPrevious
-                                        href="#"
-                                        className={cn(currentPage === 1 && "pointer-events-none opacity-50")}
-                                        onClick={(event) => {
-                                            event.preventDefault();
-                                            handleChangePage(currentPage - 1);
-                                        }}
-                                    />
-                                </PaginationItem>
-                                {Array.from({length: totalPages}).map((_, index) => {
-                                    const pageNumber = index + 1;
-                                    return (
-                                        <PaginationItem key={pageNumber}>
-                                            <PaginationLink
-                                                href="#"
-                                                isActive={pageNumber === currentPage}
-                                                onClick={(event) => {
-                                                    event.preventDefault();
-                                                    handleChangePage(pageNumber);
-                                                }}
-                                            >
-                                                {pageNumber}
-                                            </PaginationLink>
-                                        </PaginationItem>
-                                    );
-                                })}
-                                <PaginationItem>
-                                    <PaginationNext
-                                        href="#"
-                                        className={cn(currentPage === totalPages && "pointer-events-none opacity-50")}
-                                        onClick={(event) => {
-                                            event.preventDefault();
-                                            handleChangePage(currentPage + 1);
-                                        }}
-                                    />
-                                </PaginationItem>
-                            </PaginationContent>
-                        </Pagination>
-                    </>
-                ) : (
-                    <Card className="border-dashed">
-                        <CardContent className="flex flex-col items-center gap-3 py-12 text-center text-muted-foreground">
-                            <CardTitle className="text-lg text-foreground">No modules match your filters yet</CardTitle>
-                            <p className="max-w-md text-sm leading-relaxed">
-                                Adjust your filters or build a fresh module tailored to your next unit.
-                            </p>
-                            <Button asChild>
-                                <Link to="/modules/create">Design a new module</Link>
+            {isLoading && (
+                <Card>
+                    <CardContent className="py-8 text-center text-muted-foreground">
+                        Loading modules…
+                    </CardContent>
+                </Card>
+            )}
+            {error && (
+                <Card className="border-destructive/50 bg-destructive/5">
+                    <CardContent className="py-6 text-destructive">
+                        <div className="flex items-center justify-between">
+                            <p>Unable to load modules: {error}</p>
+                            <Button variant="outline" onClick={() => resetFilters()}>
+                                Reset filters
                             </Button>
-                        </CardContent>
-                    </Card>
-                )}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
+            {emptyState && (
+                <Card>
+                    <CardContent className="py-10 text-center text-muted-foreground">
+                        No modules match your filters yet.
+                    </CardContent>
+                </Card>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {paginatedModules.map((module) => {
+                    const normalizedStatus = displayStatus(module.status);
+                    const statusVariant = statusTone[normalizedStatus] ?? "outline";
+
+                    return (
+                        <Card key={module.id} className="flex flex-col">
+                            <CardHeader className="pb-2">
+                                <div className="flex items-start justify-between gap-2">
+                                    <Badge variant={statusVariant} className="uppercase">
+                                        {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
+                                    </Badge>
+                                    <span className="text-xs text-muted-foreground">{updatedLabel(module.updated_at)}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                                        {module.code}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <CardTitle className="text-xl">{module.title}</CardTitle>
+                                    <p className="text-xs text-muted-foreground">
+                                        {module.subject ?? "Subject TBD"} · {module.grade_band ?? "Grade TBD"}
+                                    </p>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="flex flex-1 flex-col justify-between gap-3">
+                                <p className="text-sm text-muted-foreground line-clamp-3">
+                                    {module.summary}
+                                </p>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {(module.tags ?? []).slice(0, 3).map((tag) => (
+                                        <Badge key={tag} variant="secondary">
+                                            {tag}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </CardContent>
+                            <CardFooter className="border-t pt-4">
+                                <div className="flex w-full items-center justify-between">
+                                    <div className="text-xs text-muted-foreground">
+                                        <strong className="font-semibold text-foreground">{module.lessons_count ?? 0}</strong> lessons
+                                    </div>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link to={`/modules/${module.id}`} className="flex items-center gap-2">
+                                            View overview
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </CardFooter>
+                        </Card>
+                    );
+                })}
+            </div>
+
+            <div className="flex items-center justify-between gap-3">
+                <div className="text-sm text-muted-foreground">
+                    Showing {(page - 1) * 9 + 1}-{Math.min(page * 9, meta?.total ?? modules.length)} of {meta?.total ?? modules.length} modules
+                </div>
+                <Pagination>
+                    <PaginationContent>
+                        <PaginationItem>
+                            <PaginationPrevious
+                                onClick={() => handlePageChange(page - 1)}
+                                className={cn(page === 1 && "pointer-events-none opacity-50")}
+                            />
+                        </PaginationItem>
+                        {Array.from({length: meta?.last_page ?? 1}, (_, index) => index + 1).map((pageNumber) => (
+                            <PaginationItem key={pageNumber}>
+                                <PaginationLink
+                                    isActive={pageNumber === page}
+                                    onClick={() => handlePageChange(pageNumber)}
+                                >
+                                    {pageNumber}
+                                </PaginationLink>
+                            </PaginationItem>
+                        ))}
+                        <PaginationItem>
+                            <PaginationNext
+                                onClick={() => handlePageChange(page + 1)}
+                                className={cn(page === (meta?.last_page ?? 1) && "pointer-events-none opacity-50")}
+                            />
+                        </PaginationItem>
+                    </PaginationContent>
+                </Pagination>
             </div>
         </div>
     );
