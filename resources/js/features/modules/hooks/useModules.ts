@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {fetchModules} from "../services/moduleApi";
 import type {ModuleSummary, PaginatedResponse} from "../types/module";
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 
 const DEFAULT_SUBJECT = "All subjects";
 const DEFAULT_GRADE = "All grade bands";
@@ -9,6 +10,7 @@ const PAGE_SIZE = 9;
 
 export function useModules() {
     const [modules, setModules] = useState<ModuleSummary[]>([]);
+    const {subjects, gradeBands} = useTaxonomies();
     const [search, setSearch] = useState("");
     const [subject, setSubject] = useState(DEFAULT_SUBJECT);
     const [gradeBand, setGradeBand] = useState(DEFAULT_GRADE);
@@ -55,8 +57,8 @@ export function useModules() {
         load().then(() => {});
     }, [load]);
 
-    const subjectOptions = useMemo(() => [DEFAULT_SUBJECT, ...(filters.subjects ?? [])], [filters.subjects]);
-    const gradeBandOptions = useMemo(() => [DEFAULT_GRADE, ...(filters.grade_bands ?? [])], [filters.grade_bands]);
+    const subjectOptions = useMemo(() => [DEFAULT_SUBJECT, ...((filters.subjects && filters.subjects.length) ? filters.subjects : subjects)], [filters.subjects, subjects]);
+    const gradeBandOptions = useMemo(() => [DEFAULT_GRADE, ...((filters.grade_bands && filters.grade_bands.length) ? filters.grade_bands : gradeBands)], [filters.grade_bands, gradeBands]);
     const statusOptions = useMemo(() => [DEFAULT_STATUS, ...(filters.statuses ?? [])], [filters.statuses]);
 
     const resetFilters = () => {

@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Contexts\UserManagement\Models\UserSetting;
+use App\Contexts\UserManagement\Models\FormTaxonomy;
 
 class User extends Authenticatable
 {
@@ -84,5 +88,15 @@ class User extends Authenticatable
     public function guardianProfile()
     {
         return $this->hasOne(GuardianProfile::class, 'user_id');
+    }
+
+    public function settings(): HasOne
+    {
+        return $this->hasOne(UserSetting::class);
+    }
+
+    public function updatedTaxonomies(): HasMany
+    {
+        return $this->hasMany(FormTaxonomy::class, 'updated_by');
     }
 }

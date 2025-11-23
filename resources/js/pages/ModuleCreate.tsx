@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useRef, useState, type ChangeEvent, type DragEvent, type FormEvent} from "react";
 import {createModule} from "@/features/modules/services/moduleApi";
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 import PageHeading from "@/components/ui/PageHeading.tsx";
 import {
     Card,
@@ -42,11 +43,12 @@ interface LessonFormData {
     media: LessonMediaAsset[];
 }
 
-const subjectOptions = ["Wellness", "Literacy", "Science", "Mathematics", "Arts", "Humanities"];
-const gradeBandOptions = ["Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
+const subjectOptionsFallback = ["Wellness", "Literacy", "Science", "Mathematics", "Arts", "Humanities"];
+const gradeBandOptionsFallback = ["Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
 const statusOptions = ["draft", "published", "archived"] as const;
 
 export default function ModuleCreate() {
+    const {subjects, gradeBands} = useTaxonomies();
     const [moduleFields, setModuleFields] = useState({
         code: "",
         title: "",
@@ -438,11 +440,11 @@ export default function ModuleCreate() {
                                                     <SelectValue placeholder="Select subject" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {subjectOptions.map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
+                                                {(subjects.length ? subjects : subjectOptionsFallback).map((option) => (
+                                                    <SelectItem key={option} value={option}>
+                                                        {option}
+                                                    </SelectItem>
+                                                ))}
                                                 </SelectContent>
                                             </Select>
                                         </Field>
@@ -456,11 +458,11 @@ export default function ModuleCreate() {
                                                     <SelectValue placeholder="Select grade band" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {gradeBandOptions.map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
+                                                {(gradeBands.length ? gradeBands : gradeBandOptionsFallback).map((option) => (
+                                                    <SelectItem key={option} value={option}>
+                                                        {option}
+                                                    </SelectItem>
+                                                ))}
                                                 </SelectContent>
                                             </Select>
                                         </Field>

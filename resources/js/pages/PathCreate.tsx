@@ -27,8 +27,9 @@ import {fetchModules} from "@/features/modules/services/moduleApi.ts";
 import {createPath} from "@/features/paths/services/pathApi.ts";
 import type {ModuleSummary} from "@/features/modules/types/module";
 import {useNavigate} from "react-router-dom";
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 
-const subjectAreas = [
+const subjectAreasFallback = [
     {value: "Mathematics", label: "Mathematics"},
     {value: "Science", label: "Science"},
     {value: "Literacy", label: "Literacy"},
@@ -36,7 +37,7 @@ const subjectAreas = [
     {value: "Wellness", label: "Wellness"},
 ];
 
-const gradeBands = [
+const gradeBandsFallback = [
     {value: "Grades K – 2", label: "Grades K – 2"},
     {value: "Grades 3 – 5", label: "Grades 3 – 5"},
     {value: "Grades 6 – 8", label: "Grades 6 – 8"},
@@ -58,6 +59,7 @@ const outcomeSuggestions = [
 
 export default function PathCreate() {
     const navigate = useNavigate();
+    const {subjects, gradeBands} = useTaxonomies();
     const [title, setTitle] = useState<string>("");
     const [summary, setSummary] = useState<string>("");
     const [objectivesInput, setObjectivesInput] = useState<string>("");
@@ -201,9 +203,9 @@ export default function PathCreate() {
                                                 <SelectValue placeholder="Select subject"/>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {subjectAreas.map((subject) => (
-                                                    <SelectItem key={subject.value} value={subject.value}>
-                                                        {subject.label}
+                                                {(subjects.length ? subjects : subjectAreasFallback.map((s) => s.value)).map((subject) => (
+                                                    <SelectItem key={subject} value={subject}>
+                                                        {subject}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>
@@ -218,9 +220,9 @@ export default function PathCreate() {
                                                 <SelectValue placeholder="Select range"/>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                {gradeBands.map((band) => (
-                                                    <SelectItem key={band.value} value={band.value}>
-                                                        {band.label}
+                                                {(gradeBands.length ? gradeBands : gradeBandsFallback.map((band) => band.value)).map((band) => (
+                                                    <SelectItem key={band} value={band}>
+                                                        {band}
                                                     </SelectItem>
                                                 ))}
                                             </SelectContent>

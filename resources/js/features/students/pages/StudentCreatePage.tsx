@@ -51,16 +51,7 @@ import {H3} from "@/components/ui/typography/h3.tsx";
 import DownloadableMaterial from "@/components/ui/DownloadableMaterial.tsx";
 import {fetchParents, ParentOption} from "@/lib/api.ts";
 import type {CheckedState} from "@radix-ui/react-checkbox";
-
-const diagnosisOptions = ["OCD", "ADHD", "Downs Syndrome", "LCD", "ABCD"];
-
-const evaluationOptions = [
-    "Student can write without a teacher",
-    "Student can read independently",
-    "Student can write with guided lines",
-    "Student can follow multi-step instructions",
-    "Student demonstrates self-regulation",
-];
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 
 const initialParentOptions: ParentOption[] = [];
 
@@ -151,6 +142,7 @@ const splitName = (fullName: string): {first: string; last: string} => {
 };
 
 const StudentCreatePage = () => {
+    const {diagnoses, evaluations} = useTaxonomies();
     const storedUserId = useMemo(resolveStoredUserId, []);
     const [parentSelectOpen, setParentSelectOpen] = useState(false);
     const [parentOptions, setParentOptions] = useState<ParentOption[]>(initialParentOptions);
@@ -165,7 +157,7 @@ const StudentCreatePage = () => {
     const [birthYear, setBirthYear] = useState("");
     const [birthMonth, setBirthMonth] = useState("");
     const [birthDay, setBirthDay] = useState("");
-    const [diagnoses, setDiagnoses] = useState<string[]>([]);
+    const [diagnosesSelections, setDiagnosesSelections] = useState<string[]>([]);
     const [assessmentSelections, setAssessmentSelections] = useState<string[]>([]);
     const [parentNote, setParentNote] = useState("");
     const [parentRelationship, setParentRelationship] = useState("");
@@ -177,7 +169,7 @@ const StudentCreatePage = () => {
     const teacherId = storedUserId;
 
     const handleDiagnosisChange = (value: string, checked: CheckedState) => {
-        setDiagnoses((prev) => {
+        setDiagnosesSelections((prev) => {
             if (checked === true) {
                 return prev.includes(value) ? prev : [...prev, value];
             }
@@ -309,8 +301,8 @@ const StudentCreatePage = () => {
                 status: "onboarding",
             };
 
-            if (diagnoses.length > 0) {
-                payload.diagnoses = diagnoses;
+            if (diagnosesSelections.length > 0) {
+                payload.diagnoses = diagnosesSelections;
             }
 
             if (assessmentSelections.length > 0) {
@@ -341,7 +333,7 @@ const StudentCreatePage = () => {
             setBirthYear("");
             setBirthMonth("");
             setBirthDay("");
-            setDiagnoses([]);
+            setDiagnosesSelections([]);
             setAssessmentSelections([]);
             setParentNote("");
             setParentRelationship("");
@@ -558,12 +550,11 @@ const StudentCreatePage = () => {
                                                     Diagnose
                                                 </FieldLabel>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    {diagnosisOptions.map((option) => (
+                                                    {(diagnoses.length ? diagnoses : []).map((option) => (
                                                         <Field orientation="horizontal" key={option}>
                                                             <Checkbox
-
                                                                 id={`diagnosis-${option}`}
-                                                                // checked={diagnoses.includes(option)}
+                                                                checked={diagnosesSelections.includes(option)}
                                                                 onCheckedChange={(checked) =>
                                                                     handleDiagnosisChange(option, checked)
                                                                 }
@@ -589,7 +580,7 @@ const StudentCreatePage = () => {
                                                 Select observations that best describe the student's current abilities.
                                             </FieldDescription>
                                             <div className="grid grid-cols-2 gap-4">
-                                                {evaluationOptions.map((option) => (
+                                                {(evaluations.length ? evaluations : []).map((option) => (
                                                     <Field orientation="horizontal" key={option}>
                                                         <Checkbox
                                                             id={`evaluation-${option}`}

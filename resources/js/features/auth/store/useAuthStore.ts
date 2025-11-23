@@ -8,6 +8,7 @@ type AuthState = {
     setSession: (payload: LoginResponse) => void;
     clearSession: () => void;
     hydrate: () => void;
+    updateUser: (updates: Partial<AuthUser>) => void;
 };
 
 const readStoredUser = (): AuthUser | null => {
@@ -45,6 +46,17 @@ export const useAuthStore = create<AuthState>((set) => ({
         set({
             token: token ?? null,
             user: readStoredUser(),
+        });
+    },
+    updateUser: (updates) => {
+        set((state) => {
+            if (!state.user) {
+                return state;
+            }
+
+            const nextUser = {...state.user, ...updates};
+            localStorage.setItem("rr_user", JSON.stringify(nextUser));
+            return {...state, user: nextUser};
         });
     },
 }));

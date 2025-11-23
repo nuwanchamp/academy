@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from "react";
 import type {PathFilters, PathStatus, PathSummary} from "../types/path";
 import {listPaths} from "../services/pathApi";
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 
 const DEFAULT_SUBJECT = "All subjects";
 const DEFAULT_GRADE = "All grade bands";
@@ -9,6 +10,7 @@ const PAGE_SIZE = 6;
 
 export function usePaths() {
     const [paths, setPaths] = useState<PathSummary[]>([]);
+    const {subjects, gradeBands} = useTaxonomies();
     const [filters, setFilters] = useState<PathFilters>({
         subjects: [],
         grade_bands: [],
@@ -58,13 +60,13 @@ export function usePaths() {
     }, [load]);
 
     const subjectOptions = useMemo(
-        () => [DEFAULT_SUBJECT, ...filters.subjects],
-        [filters.subjects],
+        () => [DEFAULT_SUBJECT, ...(filters.subjects.length ? filters.subjects : subjects)],
+        [filters.subjects, subjects],
     );
 
     const gradeOptions = useMemo(
-        () => [DEFAULT_GRADE, ...filters.grade_bands],
-        [filters.grade_bands],
+        () => [DEFAULT_GRADE, ...(filters.grade_bands.length ? filters.grade_bands : gradeBands)],
+        [filters.grade_bands, gradeBands],
     );
 
     const statusOptions: Array<"all" | PathStatus> = useMemo(

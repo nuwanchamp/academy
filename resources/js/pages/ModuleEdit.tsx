@@ -23,6 +23,7 @@ import {cn} from "@/lib/utils.ts";
 import RichTextEditor from "@/components/RichTextEditor.tsx";
 import {useModule} from "@/features/modules/hooks/useModule.ts";
 import {updateModule} from "@/features/modules/services/moduleApi.ts";
+import {useTaxonomies} from "@/features/settings/hooks/useTaxonomies.ts";
 
 interface LessonMediaAsset {
     id: string;
@@ -44,12 +45,13 @@ interface LessonFormData {
     media: LessonMediaAsset[];
 }
 
-const subjectOptions = ["Wellness", "Literacy", "Science", "Mathematics", "Arts", "Humanities"];
-const gradeBandOptions = ["Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
+const subjectOptionsFallback = ["Wellness", "Literacy", "Science", "Mathematics", "Arts", "Humanities"];
+const gradeBandOptionsFallback = ["Grades K – 2", "Grades 3 – 5", "Grades 4 – 6", "Grades 5 – 8", "Grades 6 – 8", "Grades 7 – 8", "Grades 8 – 10"];
 const statusOptions = ["draft", "published", "archived"] as const;
 
 const ModuleEdit = () => {
     const {id} = useParams<{id: string}>();
+    const {subjects, gradeBands} = useTaxonomies();
     const {module, isLoading, error, reload} = useModule(id);
     const [moduleFields, setModuleFields] = useState({
         code: "",
@@ -519,11 +521,11 @@ const ModuleEdit = () => {
                                                     <SelectValue placeholder="Select subject" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {subjectOptions.map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
+                                                {(subjects.length ? subjects : subjectOptionsFallback).map((option) => (
+                                                    <SelectItem key={option} value={option}>
+                                                        {option}
+                                                    </SelectItem>
+                                                ))}
                                                 </SelectContent>
                                             </Select>
                                         </Field>
@@ -537,11 +539,11 @@ const ModuleEdit = () => {
                                                     <SelectValue placeholder="Select grade band" />
                                                 </SelectTrigger>
                                                 <SelectContent>
-                                                    {gradeBandOptions.map((option) => (
-                                                        <SelectItem key={option} value={option}>
-                                                            {option}
-                                                        </SelectItem>
-                                                    ))}
+                                                {(gradeBands.length ? gradeBands : gradeBandOptionsFallback).map((option) => (
+                                                    <SelectItem key={option} value={option}>
+                                                        {option}
+                                                    </SelectItem>
+                                                ))}
                                                 </SelectContent>
                                             </Select>
                                         </Field>

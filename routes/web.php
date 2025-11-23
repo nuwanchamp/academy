@@ -2,6 +2,4 @@
 
 use Illuminate\Support\Facades\Route;
 
-Route::fallback(function () {
-    return view('landing');
-});
+Route::view('/{any?}', 'landing')->where('any', '.*');

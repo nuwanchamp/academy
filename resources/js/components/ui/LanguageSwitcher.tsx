@@ -3,7 +3,7 @@ import {useTranslation} from "react-i18next";
 import {useMemo} from "react";
 import {cn} from "@/lib/utils.ts";
 
-const languageOptions = [
+export const languageOptions = [
     {value: "en", label: "English", className: ""},
     {value: "si", label: "සිංහල", className: "font-sinhala"},
 ] as const;
