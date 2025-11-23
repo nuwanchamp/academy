@@ -1,0 +1,705 @@
+{
+  "info": {
+    "_postman_id": "9f7d8c9c-4f2c-4b8a-a377-rrapi-v1",
+    "name": "Rainbow Roots API v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "# Rainbow Roots API v1 (Sanctum)\n\n**Base URL**: `{{base_url}}` (default `http://localhost:8000/api/v1`)\n\n**Auth**: Bearer `{{token}}` (login/register to obtain; stored in env after Login request test)\n\n**Content-Type**: `application/json`\n\n**Versioning**: Path-based `/api/v1`\n\n## Schemas\n- **User**: `id`, `name`, `first_name`, `last_name`, `preferred_name`, `email`, `role` (`admin|teacher|parent`), `preferred_locale`, `timezone`, `is_active`, `last_login_at`.\n- **GuardianProfile**: `household_id`, `primary_phone`, `secondary_phone`, address fields, `preferred_contact_times`, `communication_preferences[]`, `identity_verified_at`.\n- **Student**: `id`, `first_name`, `last_name`, `preferred_name`, `date_of_birth`, `grade`, `status` (`onboarding|active|archived`), `diagnoses[]`, `notes`, `assessment_summary`, `ieps_or_goals[]`, `risk_flags[]`, `teacher_id`, `case_manager_id`, `current_learning_path_id`, `start_date`, `guardians[pivot: relationship, is_primary, access_level, notifications_opt_in]`.\n- **Module**: `id`, `uuid`, `code`, `title`, `summary`, `subject`, `grade_band`, `status` (`draft|published|archived`), `version_label`, `difficulty`, `estimated_duration`, `learning_type`, `objectives[]`, `prerequisites[]`, `progress_tracking`, `completion_criteria`, `feedback_strategy`, `access_control`, `published_at`, `archived_at`, `tags[]`, `authors[]`, `lessons[]` (materials, media_uploads).\n- **Path**: `id`, `uuid`, `code`, `title`, `summary`, `subject`, `grade_band`, `status`, `visibility` (`private|school|district`), `pacing`, `modules_count`, `objectives[]`, `success_metrics[]`, `planned_release_date`, `published_at`, `archived_at`, `owner_user_id`, `modules[sequence_order]`.\n- **StudySession**: `id`, `teacher_id`, `title`, `description`, `starts_at`, `ends_at`, `location`, `meeting_url`, `capacity`, `timezone`, `recurrence_rule`, `status` (`scheduled|cancelled`), `occurrences[]`, `enrollments[]`.\n- **Occurrence**: `study_session_id`, `starts_at`, `ends_at`, `status`.\n- **Enrollment**: `study_session_id`, `student_id`, `status` (`enrolled|waitlisted`), `waitlist_position`.\n\n## Success & Error Patterns\n- **Success**: 200 OK (reads/updates), 201 Created (creates/enrollments), 204 No Content (deletes/logout).\n- **Validation**: 422 with `{ \"message\": \"The given data was invalid.\", \"errors\": { \"field\": [\"reason\"] } }`.\n- **Auth**: 401 missing/invalid token; **Forbidden**: 403 ownership/role block.\n- **Not Found**: 404; **Bad Request**: 400 (e.g., mismatched session/enrollment).\n"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "event": [],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000/api/v1" },
+    { "key": "token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "00 - Setup & Auth",
+      "description": "Register/login to obtain bearer token. Login test stores token as `token` env var.",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alex Teacher\",\n  \"email\": \"teacher@example.com\",\n  \"password\": \"secret123\",\n  \"password_confirmation\": \"secret123\"\n}" },
+            "url": { "raw": "{{base_url}}/register", "host": ["{{base_url}}"], "path": ["register"] },
+            "description": "Success: 201 with user + token. Errors: 422 validation, 409/422 duplicate email.\nCurl: curl -X POST \"{{base_url}}/register\" -H \"Content-Type: application/json\" -d '{\"name\":\"Alex Teacher\",\"email\":\"teacher@example.com\",\"password\":\"secret123\",\"password_confirmation\":\"secret123\"}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"name\": \"Alex Teacher\",\n  \"email\": \"teacher@example.com\",\n  \"password\": \"secret123\",\n  \"password_confirmation\": \"secret123\"\n}" },
+                "url": { "raw": "{{base_url}}/register", "host": ["{{base_url}}"], "path": ["register"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"user\": {\"id\": 12, \"name\": \"Alex Teacher\", \"email\": \"teacher@example.com\", \"role\": \"teacher\", \"preferred_locale\": \"en\", \"timezone\": \"UTC\", \"is_active\": true, \"last_login_at\": null},\n  \"token\": \"<token>\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Login (sets token)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.token) {",
+                  "  pm.environment.set('token', json.token);",
+                  "  pm.test('Token stored', function () { pm.expect(pm.environment.get('token')).to.equal(json.token); });",
+                  "} else {",
+                  "  pm.test('Token missing', function () { pm.expect.fail('No token in response'); });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"teacher@example.com\",\n  \"password\": \"secret123\"\n}" },
+            "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] },
+            "description": "Success: 200 with user + token. Errors: 422 invalid credentials or inactive account; 401 if bearer missing for protected routes.\nCurl: curl -X POST \"{{base_url}}/login\" -H \"Content-Type: application/json\" -d '{\"identifier\":\"teacher@example.com\",\"password\":\"secret123\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"teacher@example.com\",\n  \"password\": \"secret123\"\n}" },
+                "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"user\": {\"id\": 12, \"name\": \"Alex Teacher\", \"email\": \"teacher@example.com\", \"role\": \"teacher\", \"preferred_locale\": \"en\", \"timezone\": \"UTC\", \"is_active\": true, \"last_login_at\": \"2025-03-01 14:03:22\"},\n  \"token\": \"<token>\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] }, "description": "Success: 204; revokes current token. Errors: 401 if unauthenticated.\nCurl: curl -X POST \"{{base_url}}/logout\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] }
+              },
+              "status": "No Content",
+              "code": 204,
+              "body": ""
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"email\": \"user@example.com\" }" },
+            "url": { "raw": "{{base_url}}/password/forgot", "host": ["{{base_url}}"], "path": ["password", "forgot"] },
+            "description": "Success: 200 message. Errors: 422 for invalid email.\nCurl: curl -X POST \"{{base_url}}/password/forgot\" -H \"Content-Type: application/json\" -d '{\"email\":\"user@example.com\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{ \"email\": \"user@example.com\" }" },
+                "url": { "raw": "{{base_url}}/password/forgot", "host": ["{{base_url}}"], "path": ["password", "forgot"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"message\": \"We have emailed your password reset link.\" }"
+            }
+          ]
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token>\",\n  \"email\": \"user@example.com\",\n  \"password\": \"newSecret123\",\n  \"password_confirmation\": \"newSecret123\"\n}" },
+            "url": { "raw": "{{base_url}}/password/reset", "host": ["{{base_url}}"], "path": ["password", "reset"] },
+            "description": "Success: 200 message. Errors: 422 invalid token/email or validation.\nCurl: curl -X POST \"{{base_url}}/password/reset\" -H \"Content-Type: application/json\" -d '{\"token\":\"<reset-token>\",\"email\":\"user@example.com\",\"password\":\"newSecret123\",\"password_confirmation\":\"newSecret123\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": { "mode": "raw", "raw": "{\n  \"token\": \"<reset-token>\",\n  \"email\": \"user@example.com\",\n  \"password\": \"newSecret123\",\n  \"password_confirmation\": \"newSecret123\"\n}" },
+                "url": { "raw": "{{base_url}}/password/reset", "host": ["{{base_url}}"], "path": ["password", "reset"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"message\": \"Your password has been reset.\" }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "10 - Students",
+      "description": "Teacher/case-manager protected endpoints.",
+      "item": [
+        {
+          "name": "List Students",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/students?per_page=10&grade=5&status=active&search=alex",
+              "host": ["{{base_url}}"],
+              "path": ["students"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "grade", "value": "5" },
+                { "key": "status", "value": "active" },
+                { "key": "search", "value": "alex" }
+              ]
+            },
+            "description": "Success: 200 paginated list with filters/meta. Errors: 401 unauthenticated.\nCurl: curl -X GET \"{{base_url}}/students?per_page=10&grade=5&status=active&search=alex\" -H \"Authorization: Bearer {{token}}\""
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/students?per_page=10&grade=5&status=active&search=alex",
+                  "host": ["{{base_url}}"],
+                  "path": ["students"],
+                  "query": [
+                    { "key": "per_page", "value": "10" },
+                    { "key": "grade", "value": "5" },
+                    { "key": "status", "value": "active" },
+                    { "key": "search", "value": "alex" }
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\"id\": 1, \"name\": \"Alex Rivera\", \"first_name\": \"Alex\", \"last_name\": \"Rivera\", \"preferred_name\": null, \"date_of_birth\": \"2012-03-05\", \"grade\": \"5\", \"status\": \"active\"}\n  ],\n  \"filters\": { \"grades\": [\"5\",\"6\"] },\n  \"meta\": { \"current_page\": 1, \"per_page\": 10, \"total\": 1 },\n  \"links\": {\"first\": \"...\", \"last\": \"...\"}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Student",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/students/1", "host": ["{{base_url}}"], "path": ["students", "1"] }, "description": "Success: 200 student with guardians. Errors: 401 unauthenticated; 403 if not teacher/case manager; 404 if missing.\nCurl: curl -X GET \"{{base_url}}/students/1\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/students/1", "host": ["{{base_url}}"], "path": ["students", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"first_name\": \"Alex\",\n    \"last_name\": \"Rivera\",\n    \"preferred_name\": null,\n    \"date_of_birth\": \"2012-03-05\",\n    \"grade\": \"5\",\n    \"status\": \"active\",\n    \"diagnoses\": [],\n    \"notes\": null,\n    \"assessment_summary\": null,\n    \"ieps_or_goals\": [],\n    \"risk_flags\": [],\n    \"teacher_id\": 2,\n    \"case_manager_id\": 2,\n    \"current_learning_path_id\": null,\n    \"start_date\": \"2025-02-01\",\n    \"created_at\": \"2025-02-10 10:00:00\",\n    \"updated_at\": \"2025-02-10 10:00:00\",\n    \"guardians\": [\n      {\n        \"id\": 5,\n        \"name\": \"Jamie Rivera\",\n        \"email\": \"jamie@example.com\",\n        \"pivot\": {\"relationship\": \"mother\", \"is_primary\": true, \"access_level\": \"view\", \"notifications_opt_in\": true},\n        \"profile\": {\"primary_phone\": \"+15555550123\", \"address_line1\": \"123 Main St\"}\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Sam\",\n  \"last_name\": \"Rivera\",\n  \"preferred_name\": \"Sam\",\n  \"date_of_birth\": \"2012-03-05\",\n  \"grade\": \"5\",\n  \"status\": \"onboarding\",\n  \"diagnoses\": [\"ADHD\"],\n  \"notes\": \"Reading support\",\n  \"assessment_summary\": \"Initial assessment\",\n  \"ieps_or_goals\": [\"Reading fluency\"],\n  \"risk_flags\": [\"attendance\"],\n  \"teacher_id\": 2,\n  \"case_manager_id\": 2,\n  \"current_learning_path_id\": null,\n  \"start_date\": \"2025-02-01\",\n  \"guardians\": [\n    {\"id\": 5, \"relationship\": \"parent\", \"is_primary\": true, \"access_level\": \"view\", \"notifications_opt_in\": true}\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/students", "host": ["{{base_url}}"], "path": ["students"] },
+            "description": "Success: 201 student resource. Errors: 401 unauthenticated; 422 validation.\nCurl: curl -X POST \"{{base_url}}/students\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Sam\",\"last_name\":\"Rivera\",\"date_of_birth\":\"2012-03-05\",\"grade\":\"5\",\"case_manager_id\":2}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Sam\",\n  \"last_name\": \"Rivera\",\n  \"date_of_birth\": \"2012-03-05\",\n  \"grade\": \"5\",\n  \"case_manager_id\": 2\n}" },
+                "url": { "raw": "{{base_url}}/students", "host": ["{{base_url}}"], "path": ["students"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 10,\n    \"first_name\": \"Sam\",\n    \"last_name\": \"Rivera\",\n    \"preferred_name\": null,\n    \"date_of_birth\": \"2012-03-05\",\n    \"grade\": \"5\",\n    \"status\": \"onboarding\",\n    \"diagnoses\": [],\n    \"notes\": null,\n    \"assessment_summary\": null,\n    \"ieps_or_goals\": [],\n    \"risk_flags\": [],\n    \"teacher_id\": null,\n    \"case_manager_id\": 2,\n    \"current_learning_path_id\": null,\n    \"start_date\": null,\n    \"created_at\": \"2025-03-05 10:00:00\",\n    \"updated_at\": \"2025-03-05 10:00:00\",\n    \"guardians\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Student",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"preferred_name\": \"Sammy\",\n  \"status\": \"active\",\n  \"guardians\": [\n    {\n      \"id\": 5,\n      \"relationship\": \"mother\",\n      \"is_primary\": true,\n      \"access_level\": \"comment\",\n      \"notifications_opt_in\": true,\n      \"name\": \"Jamie Rivera\",\n      \"email\": \"jamie@example.com\",\n      \"primary_phone\": \"+15555550123\",\n      \"address_line1\": \"123 Main St\"\n    }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/students/1", "host": ["{{base_url}}"], "path": ["students", "1"] },
+            "description": "Success: 200 student resource. Errors: 401 unauthenticated; 403 if not owner teacher/case manager; 422 validation; 404 not found.\nCurl: curl -X PATCH \"{{base_url}}/students/1\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"status\":\"active\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"status\": \"active\" }" },
+                "url": { "raw": "{{base_url}}/students/1", "host": ["{{base_url}}"], "path": ["students", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"first_name\": \"Alex\",\n    \"last_name\": \"Rivera\",\n    \"preferred_name\": null,\n    \"date_of_birth\": \"2012-03-05\",\n    \"grade\": \"5\",\n    \"status\": \"active\",\n    \"diagnoses\": [],\n    \"notes\": null,\n    \"assessment_summary\": null,\n    \"ieps_or_goals\": [],\n    \"risk_flags\": [],\n    \"teacher_id\": 2,\n    \"case_manager_id\": 2,\n    \"current_learning_path_id\": null,\n    \"start_date\": \"2025-02-01\",\n    \"created_at\": \"2025-02-10 10:00:00\",\n    \"updated_at\": \"2025-03-05 10:05:00\",\n    \"guardians\": []\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "20 - Parents",
+      "item": [
+        {
+          "name": "List Parents",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/parents", "host": ["{{base_url}}"], "path": ["parents"] }, "description": "Success: 200 list of guardians with linked students. Errors: 401 unauthenticated.\nCurl: curl -X GET \"{{base_url}}/parents\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/parents", "host": ["{{base_url}}"], "path": ["parents"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"data\": [ { \"user\": {\"id\":5,\"name\":\"Jamie Rivera\",\"email\":\"jamie@example.com\",\"role\":\"parent\"}, \"profile\": {\"primary_phone\":\"+15555550123\",\"city\":\"Springfield\"}, \"students\": [] } ] }"
+            }
+          ]
+        },
+        {
+          "name": "Create Parent",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"first_name\": \"Jamie\",\n  \"last_name\": \"Rivera\",\n  \"preferred_name\": \"Jamie\",\n  \"email\": \"jamie@example.com\",\n  \"password\": \"secret123\",\n  \"primary_phone\": \"+15555550123\",\n  \"secondary_phone\": null,\n  \"household_id\": \"H-1001\",\n  \"address_line1\": \"123 Main St\",\n  \"city\": \"Springfield\",\n  \"state\": \"IL\",\n  \"postal_code\": \"62701\",\n  \"preferred_contact_times\": \"Evenings\",\n  \"communication_preferences\": [\"email\",\"sms\"],\n  \"send_portal_invite\": true,\n  \"students\": [\n    {\"id\": 1, \"relationship\": \"mother\", \"is_primary\": true, \"access_level\": \"view\", \"notifications_opt_in\": true}\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/parents", "host": ["{{base_url}}"], "path": ["parents"] },
+            "description": "Success: 201 parent resource with pivoted students. Errors: 401 unauthenticated; 422 validation.\nCurl: curl -X POST \"{{base_url}}/parents\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"first_name\":\"Jamie\",\"last_name\":\"Rivera\",\"email\":\"jamie@example.com\",\"primary_phone\":\"+15555550123\"}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"first_name\":\"Jamie\", \"last_name\":\"Rivera\", \"email\":\"jamie@example.com\", \"primary_phone\":\"+15555550123\" }" },
+                "url": { "raw": "{{base_url}}/parents", "host": ["{{base_url}}"], "path": ["parents"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"user\": {\"id\": 5, \"name\": \"Jamie Rivera\", \"email\": \"jamie@example.com\", \"role\": \"parent\"},\n    \"profile\": {\"primary_phone\": \"+15555550123\", \"household_id\": \"H-1001\"},\n    \"students\": []\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "30 - Learning Modules",
+      "item": [
+        {
+          "name": "List Modules",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/modules?per_page=10&subject=Math&grade_band=5&status=published&search=fractions",
+              "host": ["{{base_url}}"],
+              "path": ["modules"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "subject", "value": "Math" },
+                { "key": "grade_band", "value": "5" },
+                { "key": "status", "value": "published" },
+                { "key": "search", "value": "fractions" }
+              ]
+            },
+            "description": "Success: 200 paginated modules + filters/meta. Errors: 401 unauthenticated.\nCurl: curl -X GET \"{{base_url}}/modules?per_page=10\" -H \"Authorization: Bearer {{token}}\""
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": {
+                  "raw": "{{base_url}}/modules?per_page=10",
+                  "host": ["{{base_url}}"],
+                  "path": ["modules"],
+                  "query": [{ "key": "per_page", "value": "10" }]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\"id\": 1, \"uuid\": \"...\", \"code\": \"MATH-FRAC-101\", \"title\": \"Fractions Basics\", \"status\": \"published\", \"grade_band\": \"5\", \"subject\": \"Math\", \"lessons_count\": 3, \"tags\": [\"math\",\"fractions\"], \"updated_at\": \"2025-03-01 10:00:00\"}\n  ],\n  \"filters\": { \"subjects\": [\"Math\"], \"grade_bands\": [\"5\"], \"statuses\": [\"draft\",\"published\",\"archived\"] },\n  \"meta\": {\"current_page\":1,\"per_page\":10,\"total\":1},\n  \"links\": {\"first\":\"...\",\"last\":\"...\"}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Module",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/modules/1", "host": ["{{base_url}}"], "path": ["modules", "1"] }, "description": "Success: 200 module with tags/authors/lessons. Errors: 401 unauthenticated; 404 not found.\nCurl: curl -X GET \"{{base_url}}/modules/1\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/modules/1", "host": ["{{base_url}}"], "path": ["modules", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"uuid\": \"...\",\n    \"code\": \"MATH-FRAC-101\",\n    \"title\": \"Fractions Basics\",\n    \"summary\": \"Understanding simple fractions\",\n    \"subject\": \"Math\",\n    \"grade_band\": \"5\",\n    \"status\": \"published\",\n    \"version_label\": \"v1\",\n    \"difficulty\": \"beginner\",\n    \"estimated_duration\": \"45m\",\n    \"learning_type\": \"lesson\",\n    \"objectives\": [\"Identify fractions\"],\n    \"prerequisites\": [\"Basic division\"],\n    \"progress_tracking\": \"quiz\",\n    \"completion_criteria\": \"quiz >= 80%\",\n    \"feedback_strategy\": \"inline\",\n    \"access_control\": \"school\",\n    \"published_at\": \"2025-03-01 10:00:00\",\n    \"archived_at\": null,\n    \"tags\": [\"math\",\"fractions\"],\n    \"authors\": [ {\"id\":1,\"name\":\"A. Teacher\",\"role\":\"Author\",\"bio\":\"Math teacher\",\"contact_links\":[]} ],\n    \"lessons\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Module",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"MATH-FRAC-101\",\n  \"title\": \"Fractions Basics\",\n  \"summary\": \"Understanding simple fractions\",\n  \"subject\": \"Math\",\n  \"grade_band\": \"5\",\n  \"status\": \"draft\",\n  \"version_label\": \"v1\",\n  \"difficulty\": \"beginner\",\n  \"estimated_duration\": \"45m\",\n  \"learning_type\": \"lesson\",\n  \"objectives\": [\"Identify fractions\"],\n  \"prerequisites\": [\"Basic division\"],\n  \"progress_tracking\": \"quiz\",\n  \"completion_criteria\": \"quiz >= 80%\",\n  \"feedback_strategy\": \"inline\",\n  \"access_control\": \"school\",\n  \"tags\": [\"math\",\"fractions\"],\n  \"authors\": [\n    {\"name\": \"A. Teacher\", \"role\": \"Author\", \"bio\": \"Math teacher\", \"contact_links\": [{\"label\": \"Email\", \"href\": \"mailto:a@example.com\"}]}\n  ],\n  \"lessons\": [\n    {\n      \"title\": \"Intro to Fractions\",\n      \"sequence_order\": 1,\n      \"summary\": \"Parts of a whole\",\n      \"objectives\": [\"Recognize numerator/denominator\"],\n      \"body\": \"Lesson content\",\n      \"instructions\": \"Do worksheet\",\n      \"outcomes\": [\"Understands halves\"],\n      \"materials\": [\n        {\"name\": \"Slides\", \"file_type\": \"pdf\", \"storage_path\": \"materials/slides.pdf\"}\n      ],\n      \"media_uploads\": [\n        {\"file_name\": \"demo.mp4\", \"storage_path\": \"media/demo.mp4\", \"mime_type\": \"video/mp4\"}\n      ]\n    }\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/modules", "host": ["{{base_url}}"], "path": ["modules"] },
+            "description": "Success: 201 module resource. Errors: 401 unauthenticated; 422 validation.\nCurl: curl -X POST \"{{base_url}}/modules\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"code\":\"MATH-FRAC-101\",\"title\":\"Fractions Basics\"}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"code\": \"MATH-FRAC-101\", \"title\": \"Fractions Basics\" }" },
+                "url": { "raw": "{{base_url}}/modules", "host": ["{{base_url}}"], "path": ["modules"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 2,\n    \"uuid\": \"...\",\n    \"code\": \"MATH-FRAC-101\",\n    \"title\": \"Fractions Basics\",\n    \"subject\": null,\n    \"grade_band\": null,\n    \"status\": \"draft\",\n    \"version_label\": null,\n    \"difficulty\": null,\n    \"estimated_duration\": null,\n    \"learning_type\": null,\n    \"lessons_count\": 0,\n    \"objectives\": [],\n    \"prerequisites\": [],\n    \"progress_tracking\": null,\n    \"completion_criteria\": null,\n    \"feedback_strategy\": null,\n    \"access_control\": null,\n    \"published_at\": null,\n    \"archived_at\": null,\n    \"tags\": [],\n    \"authors\": [],\n    \"lessons\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Module",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"status\": \"published\", \"tags\": [\"math\",\"fractions\",\"grade5\"] }" },
+            "url": { "raw": "{{base_url}}/modules/1", "host": ["{{base_url}}"], "path": ["modules", "1"] },
+            "description": "Success: 200 module resource. Errors: 401 unauthenticated; 422 validation; 404 not found.\nCurl: curl -X PATCH \"{{base_url}}/modules/1\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"status\":\"published\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"status\": \"published\" }" },
+                "url": { "raw": "{{base_url}}/modules/1", "host": ["{{base_url}}"], "path": ["modules", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"uuid\": \"...\",\n    \"code\": \"MATH-FRAC-101\",\n    \"title\": \"Fractions Basics\",\n    \"status\": \"published\",\n    \"tags\": [\"math\",\"fractions\",\"grade5\"],\n    \"lessons\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Module",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/modules/1", "host": ["{{base_url}}"], "path": ["modules", "1"] }, "description": "Success: 204. Errors: 401 unauthenticated; 404 not found.\nCurl: curl -X DELETE \"{{base_url}}/modules/1\" -H \"Authorization: Bearer {{token}}\"" }
+        }
+      ]
+    },
+    {
+      "name": "40 - Learning Paths",
+      "item": [
+        {
+          "name": "List Paths",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/paths?per_page=10&subject=Math&grade_band=5&status=published&visibility=school&search=fractions",
+              "host": ["{{base_url}}"],
+              "path": ["paths"],
+              "query": [
+                { "key": "per_page", "value": "10" },
+                { "key": "subject", "value": "Math" },
+                { "key": "grade_band", "value": "5" },
+                { "key": "status", "value": "published" },
+                { "key": "visibility", "value": "school" },
+                { "key": "search", "value": "fractions" }
+              ]
+            },
+            "description": "Success: 200 paginated paths + filters/meta. Errors: 401 unauthenticated.\nCurl: curl -X GET \"{{base_url}}/paths?per_page=10\" -H \"Authorization: Bearer {{token}}\""
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/paths?per_page=10", "host": ["{{base_url}}"], "path": ["paths"], "query": [{ "key": "per_page", "value": "10" }] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": [\n    {\"id\": 1, \"uuid\": \"...\", \"code\": \"PATH-MATH-01\", \"title\": \"Math Foundations\", \"subject\": \"Math\", \"grade_band\": \"5\", \"status\": \"draft\", \"visibility\": \"private\", \"modules_count\": 1}\n  ],\n  \"filters\": {\"subjects\":[\"Math\"],\"grade_bands\":[\"5\"],\"statuses\":[\"draft\",\"published\",\"archived\"],\"visibilities\":[\"private\",\"school\",\"district\"]},\n  \"meta\": {\"current_page\":1,\"per_page\":10,\"total\":1},\n  \"links\": {\"first\":\"...\",\"last\":\"...\"}\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Path",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/paths/1", "host": ["{{base_url}}"], "path": ["paths", "1"] }, "description": "Success: 200 path with owner/modules. Errors: 401 unauthenticated; 404 not found.\nCurl: curl -X GET \"{{base_url}}/paths/1\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/paths/1", "host": ["{{base_url}}"], "path": ["paths", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"uuid\": \"...\",\n    \"code\": \"PATH-MATH-01\",\n    \"title\": \"Math Foundations\",\n    \"summary\": \"Intro modules\",\n    \"subject\": \"Math\",\n    \"grade_band\": \"5\",\n    \"status\": \"draft\",\n    \"visibility\": \"private\",\n    \"pacing\": \"Weekly\",\n    \"modules_count\": 1,\n    \"objectives\": [\"Build basics\"],\n    \"success_metrics\": [\"Quiz >= 80%\"],\n    \"planned_release_date\": null,\n    \"published_at\": null,\n    \"archived_at\": null,\n    \"owner\": {\"id\": 2, \"name\": \"Alex Teacher\", \"email\": \"teacher@example.com\"},\n    \"modules\": [ {\"id\": 1, \"code\": \"MATH-FRAC-101\", \"title\": \"Fractions Basics\", \"sequence_order\": 1} ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Path",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"code\": \"PATH-MATH-01\",\n  \"title\": \"Math Foundations\",\n  \"summary\": \"Intro modules\",\n  \"subject\": \"Math\",\n  \"grade_band\": \"5\",\n  \"status\": \"draft\",\n  \"visibility\": \"private\",\n  \"pacing\": \"Weekly\",\n  \"objectives\": [\"Build basics\"],\n  \"success_metrics\": [\"Quiz >= 80%\"],\n  \"planned_release_date\": \"2025-04-01\",\n  \"owner_user_id\": 2,\n  \"modules\": [\n    {\"id\": 1, \"sequence_order\": 1}\n  ]\n}" },
+            "url": { "raw": "{{base_url}}/paths", "host": ["{{base_url}}"], "path": ["paths"] },
+            "description": "Success: 201 path resource. Errors: 401 unauthenticated; 422 validation.\nCurl: curl -X POST \"{{base_url}}/paths\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"code\":\"PATH-MATH-01\",\"title\":\"Math Foundations\"}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"code\": \"PATH-MATH-01\", \"title\": \"Math Foundations\" }" },
+                "url": { "raw": "{{base_url}}/paths", "host": ["{{base_url}}"], "path": ["paths"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 2,\n    \"uuid\": \"...\",\n    \"code\": \"PATH-MATH-01\",\n    \"title\": \"Math Foundations\",\n    \"status\": \"draft\",\n    \"visibility\": \"private\",\n    \"modules_count\": 0,\n    \"modules\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Path",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"status\": \"published\", \"visibility\": \"school\" }" },
+            "url": { "raw": "{{base_url}}/paths/1", "host": ["{{base_url}}"], "path": ["paths", "1"] },
+            "description": "Success: 200 path resource. Errors: 401 unauthenticated; 422 validation; 404 not found.\nCurl: curl -X PATCH \"{{base_url}}/paths/1\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"status\":\"published\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"status\": \"published\" }" },
+                "url": { "raw": "{{base_url}}/paths/1", "host": ["{{base_url}}"], "path": ["paths", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"uuid\": \"...\",\n    \"code\": \"PATH-MATH-01\",\n    \"title\": \"Math Foundations\",\n    \"status\": \"published\",\n    \"visibility\": \"school\",\n    \"modules_count\": 1,\n    \"modules\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Path",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/paths/1", "host": ["{{base_url}}"], "path": ["paths", "1"] }, "description": "Success: 204. Errors: 401 unauthenticated; 404 not found.\nCurl: curl -X DELETE \"{{base_url}}/paths/1\" -H \"Authorization: Bearer {{token}}\"" }
+        }
+      ]
+    },
+    {
+      "name": "50 - Scheduling",
+      "item": [
+        {
+          "name": "List Study Sessions",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/study-sessions", "host": ["{{base_url}}"], "path": ["study-sessions"] }, "description": "Success: 200 array of teacher-owned sessions with counts and occurrences. Errors: 401 unauthenticated.\nCurl: curl -X GET \"{{base_url}}/study-sessions\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/study-sessions", "host": ["{{base_url}}"], "path": ["study-sessions"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "[\n  {\n    \"id\": 1,\n    \"teacher_id\": 2,\n    \"title\": \"Reading Lab\",\n    \"description\": \"Fluency focus\",\n    \"starts_at\": \"2025-03-10 15:00:00\",\n    \"ends_at\": \"2025-03-10 16:00:00\",\n    \"location\": \"Room 12\",\n    \"meeting_url\": null,\n    \"capacity\": 6,\n    \"timezone\": \"UTC\",\n    \"status\": \"scheduled\",\n    \"enrolled_count\": 0,\n    \"waitlist_count\": 0,\n    \"occurrences\": []\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Show Study Session",
+          "request": { "method": "GET", "url": { "raw": "{{base_url}}/study-sessions/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1"] }, "description": "Success: 200 session with occurrences. Errors: 401 unauthenticated; 403 if not owner teacher; 404 not found.\nCurl: curl -X GET \"{{base_url}}/study-sessions/1\" -H \"Authorization: Bearer {{token}}\"" },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+                "url": { "raw": "{{base_url}}/study-sessions/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"teacher_id\": 2,\n    \"title\": \"Reading Lab\",\n    \"description\": \"Fluency focus\",\n    \"starts_at\": \"2025-03-10 15:00:00\",\n    \"ends_at\": \"2025-03-10 16:00:00\",\n    \"location\": \"Room 12\",\n    \"meeting_url\": null,\n    \"capacity\": 6,\n    \"timezone\": \"UTC\",\n    \"status\": \"scheduled\",\n    \"enrolled_count\": 0,\n    \"waitlist_count\": 0,\n    \"occurrences\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Study Session",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Reading Lab\",\n  \"description\": \"Fluency focus\",\n  \"starts_at\": \"2025-03-10T15:00:00Z\",\n  \"ends_at\": \"2025-03-10T16:00:00Z\",\n  \"location\": \"Room 12\",\n  \"meeting_url\": null,\n  \"capacity\": 6,\n  \"timezone\": \"UTC\",\n  \"recurrence\": { \"frequency\": \"weekly\", \"count\": 4 }\n}" },
+            "url": { "raw": "{{base_url}}/study-sessions", "host": ["{{base_url}}"], "path": ["study-sessions"] },
+            "description": "Success: 201 session with occurrences; status=scheduled. Errors: 401 unauthenticated; 403 if not teacher/admin; 422 validation (time conflicts, capacity, recurrence).\nCurl: curl -X POST \"{{base_url}}/study-sessions\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"title\":\"Reading Lab\",\"starts_at\":\"2025-03-10T15:00:00Z\",\"ends_at\":\"2025-03-10T16:00:00Z\",\"capacity\":6}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"title\": \"Reading Lab\", \"starts_at\": \"2025-03-10T15:00:00Z\", \"ends_at\": \"2025-03-10T16:00:00Z\", \"capacity\": 6 }" },
+                "url": { "raw": "{{base_url}}/study-sessions", "host": ["{{base_url}}"], "path": ["study-sessions"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"teacher_id\": 2,\n    \"title\": \"Reading Lab\",\n    \"description\": \"Fluency focus\",\n    \"starts_at\": \"2025-03-10 15:00:00\",\n    \"ends_at\": \"2025-03-10 16:00:00\",\n    \"location\": \"Room 12\",\n    \"meeting_url\": null,\n    \"capacity\": 6,\n    \"timezone\": \"UTC\",\n    \"status\": \"scheduled\",\n    \"enrolled_count\": 0,\n    \"waitlist_count\": 0,\n    \"occurrences\": [\n      {\"id\": 11, \"study_session_id\": 1, \"starts_at\": \"2025-03-10 15:00:00\", \"ends_at\": \"2025-03-10 16:00:00\", \"status\": \"scheduled\"}\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Study Session",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Reading Lab - Updated\",\n  \"status\": \"scheduled\",\n  \"capacity\": 8,\n  \"recurrence\": { \"frequency\": \"weekly\", \"count\": 6 }\n}" },
+            "url": { "raw": "{{base_url}}/study-sessions/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1"] },
+            "description": "Success: 200 session with regenerated occurrences. Errors: 401 unauthenticated; 403 if not owner teacher/admin; 422 validation (conflicts, timing); 404 not found.\nCurl: curl -X PATCH \"{{base_url}}/study-sessions/1\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"capacity\":8}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"capacity\": 8 }" },
+                "url": { "raw": "{{base_url}}/study-sessions/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": {\n    \"id\": 1,\n    \"teacher_id\": 2,\n    \"title\": \"Reading Lab - Updated\",\n    \"capacity\": 8,\n    \"status\": \"scheduled\",\n    \"enrolled_count\": 0,\n    \"waitlist_count\": 0,\n    \"occurrences\": []\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Occurrence",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"starts_at\": \"2025-03-17T15:30:00Z\",\n  \"ends_at\": \"2025-03-17T16:30:00Z\",\n  \"status\": \"scheduled\"\n}" },
+            "url": { "raw": "{{base_url}}/study-sessions/1/occurrences/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1", "occurrences", "1"] },
+            "description": "Success: 200 occurrence resource. Errors: 401 unauthenticated; 403 if not owner teacher/admin; 422 validation (timing); 404 not found or mismatch.\nCurl: curl -X PATCH \"{{base_url}}/study-sessions/1/occurrences/1\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"status\":\"scheduled\"}'"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"status\": \"scheduled\" }" },
+                "url": { "raw": "{{base_url}}/study-sessions/1/occurrences/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1", "occurrences", "1"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"data\": { \"id\": 11, \"study_session_id\": 1, \"starts_at\": \"2025-03-17 15:30:00\", \"ends_at\": \"2025-03-17 16:30:00\", \"status\": \"scheduled\" }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Enroll Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{ \"student_id\": 1 }" },
+            "url": { "raw": "{{base_url}}/study-sessions/1/enrollments", "host": ["{{base_url}}"], "path": ["study-sessions", "1", "enrollments"] },
+            "description": "Success: 201 enrollment (waitlist_position when waitlisted). Errors: 401 unauthenticated; 403 if not owner teacher or student not in caseload; 422 validation (duplicate enrollment); 404 not found.\nCurl: curl -X POST \"{{base_url}}/study-sessions/1/enrollments\" -H \"Authorization: Bearer {{token}}\" -H \"Content-Type: application/json\" -d '{\"student_id\":1}'"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{token}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": { "mode": "raw", "raw": "{ \"student_id\": 1 }" },
+                "url": { "raw": "{{base_url}}/study-sessions/1/enrollments", "host": ["{{base_url}}"], "path": ["study-sessions", "1", "enrollments"] }
+              },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"data\": {\n    \"id\": 21,\n    \"study_session_id\": 1,\n    \"student_id\": 1,\n    \"status\": \"enrolled\",\n    \"waitlist_position\": null,\n    \"created_at\": \"2025-03-05 10:10:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Enrollment",
+          "request": { "method": "DELETE", "url": { "raw": "{{base_url}}/study-sessions/1/enrollments/1", "host": ["{{base_url}}"], "path": ["study-sessions", "1", "enrollments", "1"] }, "description": "Success: 204; waitlist auto-promotes. Errors: 401 unauthenticated; 403 if not owner teacher; 400 if enrollment not in session; 404 not found.\nCurl: curl -X DELETE \"{{base_url}}/study-sessions/1/enrollments/1\" -H \"Authorization: Bearer {{token}}\"" }
+        }
+      ]
+    }
+  ]
+}
