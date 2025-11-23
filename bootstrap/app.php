@@ -20,6 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
 //        if (config('app.env') === 'testing') {
 //            $middleware->remove(\Illuminate\Foundation\Http\Middleware\VerifyCsrfToken::class);
 //        }
+        $middleware->trustProxies(at: '*')
+            ->trustHosts();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
